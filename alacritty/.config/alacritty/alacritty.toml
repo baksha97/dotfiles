@@ -1,4 +1,4 @@
-# import: [~/.config/alacritty/catppuccin/catppuccin-mocha.toml]
+# import: [./catppuccin/catppuccin-mocha.toml]
 
 live_config_reload = true
 [env]
@@ -7,14 +7,14 @@ TERM = "xterm-256color"
 [window]
 decorations = "buttonless"
 dynamic_padding = false
-opacity = 0.9
+opacity = 0.99
 
 [window.padding]
 x = 25
 y = 20
 
 [font]
-size = 100.0
+size = 16.0
 
 [font.bold]
 family = "JetBrainsMono Nerd Font"

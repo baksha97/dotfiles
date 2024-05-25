@@ -8,5 +8,6 @@
     "editor.scrollBeyondLastLine": true,
     "editor.tabSize": 4,
     "editor.wordWrap": "on",
-    "workbench.colorTheme": "monokai-best"
+    "workbench.colorTheme": "monokai-best",
+    "workbench.activityBar.location": "top"
 }

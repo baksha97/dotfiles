@@ -1,0 +1,4 @@
+git-credential-manager
+intellij-idea-ce
+rectangle
+visual-studio-code

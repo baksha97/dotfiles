@@ -16,4 +16,5 @@ jobs:
           apt install zsh -y
           zsh --version
       - name: Run script
+        run:
           ./setup.sh

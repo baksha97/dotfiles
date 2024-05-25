@@ -9,9 +9,13 @@ defaults write com.apple.finder AppleShowAllFiles YES
 
 # Install all homebrew packages
 # TODO: use a brewfile https://github.com/ahmedelgabri/dotfiles/blob/master/homebrew/Brewfile
-# while IFS='' read -r line || [[ -n "$line" ]]; do
-#     brew install "$line"
-# done < "./brew.txt"
+while IFS='' read -r line || [[ -n "$line" ]]; do
+    brew install "$line"
+done < "./brew.txt"
+
+while IFS='' read -r line || [[ -n "$line" ]]; do
+    brew install "$line" --cask
+done < "./cask.txt"
 
 # Install Oh My Zsh if not installed
 if [ ! -d "$HOME/.oh-my-zsh" ]; then

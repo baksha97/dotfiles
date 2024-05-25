@@ -12,7 +12,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup
         run: |
-          apt update
           apt install zsh -y
           zsh --version
       - name: Run script

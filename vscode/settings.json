@@ -10,5 +10,6 @@
     "editor.wordWrap": "on",
     "workbench.colorTheme": "monokai-best",
     "workbench.activityBar.location": "top",
-    "git.autofetch": true
+    "git.autofetch": true,
+    "github.copilot.editor.enableAutoCompletions": true
 }

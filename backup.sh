@@ -1,5 +1,5 @@
 # Backup homebrew packages
-brew list >> "brew.txt"
+brew list --formula >> "brew.txt"
 
 # Backup cask packages
 brew list --cask >> "cask.txt"

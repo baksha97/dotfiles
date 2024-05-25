@@ -8,6 +8,7 @@ libnghttp2
 libssh2
 libunistring
 lz4
+zoxide
 ncurses
 openldap
 openssl@3

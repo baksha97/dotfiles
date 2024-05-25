@@ -1,8 +1,12 @@
 #!/bin/zsh
 
-# MacOS System
-# Show hidden files in Finder
-defaults write com.apple.finder AppleShowAllFiles YES
+# Show hidden files in file manager (Nautilus for GNOME)
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  gsettings set org.gnome.nautilus.preferences show-hidden-files true
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  # MacOS System
+  defaults write com.apple.finder AppleShowAllFiles YES
+fi
 
 # Check if Homebrew is installed, install if not
 if ! command -v brew &> /dev/null; then
@@ -25,8 +29,13 @@ stow zsh -t "$HOME" --adopt
 stow powerlevel10k -t "$HOME" --adopt
 stow tmux -t "$HOME" --adopt
 stow vscode -t "$HOME" --adopt
-stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
 
+# Different path for VSCode settings on macOS and Linux
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  stow vscode -t "$HOME/.config/Code/User" --adopt
+fi
 
 # Git configuration
 stow git -t "$HOME"/ --adopt

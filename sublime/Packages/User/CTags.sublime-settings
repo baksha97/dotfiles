@@ -1,6 +1,0 @@
-{
-	"autocomplete": false,
-    "command": "/usr/local/bin/ctags",
-    "tag_file" : "tags",
-    "extra_tag_files": [".tags, .tags_by_filename"]
-}

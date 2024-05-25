@@ -10,10 +10,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup
-        run: |
-          apt install zsh -y
-          zsh --version
+      - name: Install zsh for Ubuntu
+        run: sudo apt-get install zsh
       - name: Run script
         run:
           ./setup.sh

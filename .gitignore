@@ -1,6 +1,6 @@
 *.py[cd]
 .DS_Store
-.idea/
+.idea/**
 karabiner/.config/gh/*
 oscrypto-ca-bundle.crt
 Package Control.ca-bundle

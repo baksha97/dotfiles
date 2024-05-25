@@ -20,16 +20,16 @@ if [ ! -d "$HOME/.sdkman" ]; then
 fi
 
 # Remove existing .zshrc and adopt new configurations
-rm $HOME/.zshrc
-stow zsh -t $HOME --adopt
-stow powerlevel10k -t $HOME --adopt
-stow tmux -t $HOME --adopt
-stow vscode -t $HOME --adopt
+rm "$HOME"/.zshrc
+stow zsh -t "$HOME" --adopt
+stow powerlevel10k -t "$HOME" --adopt
+stow tmux -t "$HOME" --adopt
+stow vscode -t "$HOME" --adopt
 ln -sf "$HOME/dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
 
 # Git configuration
-stow git -t $HOME/ --adopt
-git config --global core.excludesfile $HOME/.gitignore
+stow git -t "$HOME"/ --adopt
+git config --global core.excludesfile "$HOME"/.gitignore
 
 # Source .zshrc
 source ~/.zshrc

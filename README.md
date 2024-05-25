@@ -1,21 +1,21 @@
 # Dotfiles
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b749c115177c4041a69a12cff91dc60e)](https://www.codacy.com/app/contact_45/stow-dotfiles?utm_source=github.com&utm_medium=referral&utm_content=shakeelmohamed/stow-dotfiles&utm_campaign=badger)
-
-My configuration files, for Mac OS.
+This repository contains my personal configuration files (dotfiles) for macOS. 
 
 ## Usage
 
-0. Install stow (`brew install stow`)
-0. Clone this repo with git
-0. cd into this repo
-0. Go through `git_setup.sh`
-0. Go through `setup.sh`
+1. Clone this repo with git into `$HOME/dotfiles`
+2. `cd` into this repo
+3. Run `setup.sh` to set up the system and install necessary packages
 
+The `setup.sh` script performs the following operations:
 
-## Resources
+- Shows hidden files in Finder
+- Checks if Homebrew is installed, installs if not
+- Installs all packages from Brewfile
+- Checks if SDKMAN! is installed, installs if not
+- Removes existing .zshrc and adopts new configurations
+- Sets up git configurations
+- Sources .zshrc
 
-0. [Using GNU Stow to manage your dotfiles - Brandon Invergo](http://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
-0. Some example dotfiles:
-  0. https://github.com/pedro-couto/dotfiles
-  0. https://github.com/xero/dotfiles
+The `backup.sh` script dumps the current Homebrew packages into a Brewfile.

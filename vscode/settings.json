@@ -1,15 +1,3 @@
 {
-    "window.zoomLevel": 0,
-    "editor.multiCursorModifier": "ctrlCmd",
-    "editor.snippetSuggestions": "top",
-    "editor.formatOnPaste": true,
-    "editor.find.seedSearchStringFromSelection": false,
-    "editor.fontSize": 14,
-    "editor.scrollBeyondLastLine": true,
-    "editor.tabSize": 4,
-    "editor.wordWrap": "on",
-    "workbench.colorTheme": "monokai-best",
-    "workbench.activityBar.location": "top",
-    "git.autofetch": true,
-    "github.copilot.editor.enableAutoCompletions": true
+    "git.autofetch": true
 }

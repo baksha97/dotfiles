@@ -23,6 +23,7 @@ fi
 rm $HOME/.zshrc
 stow zsh -t $HOME --adopt
 stow powerlevel10k -t $HOME --adopt
+stow tmux -t $HOME --adopt
 stow vscode -t $HOME --adopt
 ln -sf "$HOME/dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
 

@@ -1,8 +1,15 @@
-[push]
-	default = current
+[credential]
+	helper = 
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
 [user]
-	name = Travis Baksh
-	email = null
+	name = Alfayed Baksh
+	email = baksha97@gmail.com
 [core]
-	editor = subl -n -w
-	excludesfile = $HOME/.gitignore
+	excludesfile = /Users/travis/.gitignore

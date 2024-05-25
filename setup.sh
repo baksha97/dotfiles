@@ -1,21 +1,28 @@
+#!/bin/bash
+
 # MacOS System
-# Remove Message of the day prompt
-# Show hidden files in finder
+# Show hidden files in Finder
 defaults write com.apple.finder AppleShowAllFiles YES
 
-# setup GH token here
+# Setup GH token here
 # https://github.com/settings/tokens/new?scopes=gist,public_repo&description=Homebrew
-#and then set the token as: export HOMEBREW_GITHUB_API_TOKEN="your_new_token"
+# and then set the token as: export HOMEBREW_GITHUB_API_TOKEN="your_new_token"
 
-# Install all homebrew packages
-# TODO: use a brewfile https://github.com/ahmedelgabri/dotfiles/blob/master/homebrew/Brewfile
-while IFS='' read -r line || [[ -n "$line" ]]; do
-    brew install "$line"
-done < "./brew.txt"
+# Check if Homebrew is installed, install if not
+if ! command -v brew &> /dev/null; then
+  echo "Homebrew not found, installing..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
 
-while IFS='' read -r line || [[ -n "$line" ]]; do
-    brew install "$line" --cask
-done < "./cask.txt"
+# Create Brewfile if not exists
+BREWFILE_PATH="$HOME/Brewfile"
+if [ ! -f "$BREWFILE_PATH" ]; then
+  echo "Creating Brewfile..."
+  touch "$BREWFILE_PATH"
+fi
+
+# Install all packages from Brewfile
+brew bundle --file="Brewfile"
 
 # Install Oh My Zsh if not installed
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -42,15 +49,14 @@ if [ ! -d "$HOME/.sdkman" ]; then
   source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
 
-
+# Remove existing .zshrc and adopt new configurations
 rm $HOME/.zshrc
 stow zsh -t $HOME --adopt
 stow powerlevel10k -t $HOME --adopt
 stow vscode -t $HOME --adopt
 ln -sf "$HOME/dotfiles/vscode/settings.json" "$HOME/Library/Application Support/Code/User/settings.json"
 
-
-# git
+# Git configuration
 stow git -t $HOME/ --adopt
 git config --global core.excludesfile $HOME/.gitignore
 

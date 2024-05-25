@@ -1,6 +1,0 @@
-brew "git"
-brew "stow"
-cask "omnidisksweeper"
-cask "slack"
-cask "visual-studio-code"
-cask "vlc"

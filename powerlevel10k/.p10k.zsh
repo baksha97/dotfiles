@@ -1,0 +1,29 @@
+# ~/.p10k.zsh: Powerlevel10k configuration
+
+# Enable transient prompt: Hide previous prompt and command output when accepting a new command.
+POWERLEVEL9K_PROMPT_ADD_NEWLINE=false
+POWERLEVEL9K_PROMPT_ON_NEWLINE=true
+POWERLEVEL9K_TRANSIENT_PROMPT=always
+
+# Configure segments
+POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir vcs)
+POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time background_jobs time)
+
+# Directory configuration: shorten the path
+POWERLEVEL9K_SHORTEN_STRATEGY="truncate_to_last"
+POWERLEVEL9K_SHORTEN_DIR_LENGTH=1
+POWERLEVEL9K_SHORTEN_DELIMITER="…"
+
+# Time configuration
+POWERLEVEL9K_TIME_FORMAT='%D{%H:%M:%S}'
+
+# Git VCS configuration
+POWERLEVEL9K_VCS_MODIFIED_BACKGROUND='yellow'
+POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND='red'
+
+# Colors and symbols
+POWERLEVEL9K_CONTEXT_DEFAULT_BACKGROUND='blue'
+POWERLEVEL9K_DIR_DEFAULT_BACKGROUND='green'
+POWERLEVEL9K_STATUS_OK_BACKGROUND='green'
+POWERLEVEL9K_STATUS_ERROR_BACKGROUND='red'
+POWERLEVEL9K_COMMAND_EXECUTION_TIME_THRESHOLD=3

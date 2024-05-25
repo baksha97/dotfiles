@@ -29,6 +29,7 @@ stow zsh -t "$HOME" --adopt
 stow powerlevel10k -t "$HOME" --adopt
 stow tmux -t "$HOME" --adopt
 stow vscode -t "$HOME" --adopt
+stow alacritty -t "$HOME" --adopt
 
 # Different path for VSCode settings on macOS and Linux
 if [[ "$OSTYPE" == "darwin"* ]]; then

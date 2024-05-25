@@ -1,15 +1,15 @@
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+[user]
+	name = Alfayed Baksh
+	email = baksha97@gmail.com
 [credential]
 	helper = 
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
-[filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
-[user]
-	name = Alfayed Baksh
-	email = baksha97@gmail.com
 [core]
-	excludesfile = /Users/travis/.gitignore
+	excludesfile = /Users/travisbaksh/.gitignore

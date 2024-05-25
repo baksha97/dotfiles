@@ -1,2 +1,2 @@
 #!/bin/zsh
-brew bundle dump --file=Brewfile
+brew bundle dump --file=Brewfile2

@@ -14,7 +14,7 @@ x = 25
 y = 20
 
 [font]
-size = 20.0
+size = 100.0
 
 [font.bold]
 family = "JetBrainsMono Nerd Font"

@@ -77,4 +77,4 @@ bindkey -e
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^[w' kill-region
-bindkey '^I' autosuggest-accept  # Ensure this is after plugin loading
+# bindkey '^I' autosuggest-accept  # Ensure this is after plugin loading

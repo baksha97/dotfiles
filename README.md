@@ -1,3 +1,6 @@
+<img width="1297" alt="image" src="https://github.com/baksha97/dotfiles/assets/15055008/39871f8c-fd15-46df-a5c9-f7dcc3bd9e35">
+
+
 # Setup Script Documentation
 
 This README file provides a detailed explanation of each step in the `setup.sh` script. This script is used to set up a MacOS system with the necessary configurations and tools.

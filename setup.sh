@@ -31,12 +31,14 @@ stow tmux -t "$HOME" --adopt
 stow vscode -t "$HOME" --adopt
 stow alacritty -t "$HOME" --adopt
 
+stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
+# TODO: Fix this
 # Different path for VSCode settings on macOS and Linux
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  stow vscode -t "$HOME/.config/Code/User" --adopt
-fi
+# if [[ "$OSTYPE" == "darwin"* ]]; then
+#   stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
+# elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+#   stow vscode -t "$HOME/.config/Code/User" --adopt
+# fi
 
 # Git configuration
 stow git -t "$HOME"/ --adopt

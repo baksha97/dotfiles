@@ -12,4 +12,4 @@
 [credential "https://dev.azure.com"]
 	useHttpPath = true
 [core]
-	excludesfile = /Users/travisbaksh/.gitignore
+	excludesfile = /Users/travis/.gitignore

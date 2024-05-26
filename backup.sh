@@ -1,2 +1,5 @@
 #!/bin/zsh
-brew bundle dump --file=Brewfile --force
+
+BREWFILE="Brewfile"
+brew bundle dump --file=$BREWFILE --force
+#sort $BREWFILE

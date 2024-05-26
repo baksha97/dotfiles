@@ -8,14 +8,18 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
   defaults write com.apple.finder AppleShowAllFiles YES
 fi
 
-# Check if Homebrew is installed, install if not
-if ! command -v brew &> /dev/null; then
-  echo "Homebrew not found, installing..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
 
-# Install all packages from Brewfile
-brew bundle --file="Brewfile"
+###MACOS
+# # Check if Homebrew is installed, install if not
+# if ! command -v brew &> /dev/null; then
+#   echo "Homebrew not found, installing..."
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# fi
+# # Install all packages from Brewfile
+# brew bundle --file="Brewfile"
+
+###LINUX
+# setup_linux_deps.sh
 
 # Install SDKMAN! if not installed
 if [ ! -d "$HOME/.sdkman" ]; then

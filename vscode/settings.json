@@ -4,4 +4,13 @@
     "github.copilot.editor.enableAutoCompletions": true,
     "editor.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+    "github-actions.use-enterprise": true,
 }
+
+// {
+//     "git.autofetch": true,
+//     "editor.minimap.renderCharacters": false,
+//     "lldb.library": "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/LLDB",
+//     "lldb.launch.expressions": "native",
+//     "terminal.integrated.defaultProfile.osx": "zsh"
+// }

@@ -5,6 +5,10 @@
     "editor.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
     "github-actions.use-enterprise": true,
+    "editor.minimap.enabled": false,
+    "[jsonc]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
 }
 
 // {

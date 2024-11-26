@@ -1,0 +1,33 @@
+{
+  "schemes" : [
+    {
+      "pointer" : {
+        "disableAcceleration" : true
+      },
+      "if" : {
+        "device" : {
+          "productID" : "0xc548",
+          "vendorID" : "0x46d",
+          "productName" : "USB Receiver",
+          "category" : "mouse"
+        },
+        "app" : "com.riotgames.RiotGames.RiotClient"
+      }
+    },
+    {
+      "pointer" : {
+        "disableAcceleration" : true
+      },
+      "if" : {
+        "app" : "com.riotgames.leagueoflegends",
+        "device" : {
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d",
+          "category" : "mouse",
+          "productID" : "0xc548"
+        }
+      }
+    }
+  ],
+  "$schema" : "https:\/\/schema.linearmouse.app\/0.10.0"
+}

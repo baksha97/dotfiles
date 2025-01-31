@@ -4,4 +4,8 @@
     "github.copilot.editor.enableAutoCompletions": true,
     "editor.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+    "github.copilot.advanced": {},
+    "workbench.sideBar.location": "right",
+    "explorer.sortOrderLexicographicOptions": "upper",
+    "explorer.compactFolders": false,
 }

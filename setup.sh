@@ -15,9 +15,21 @@ if ! command -v brew &> /dev/null; then
 fi
 
 # Add brew to the path for the brewfile installation 
-echo >> $HOME/.zprofile
-echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
-eval "$(/opt/homebrew/bin/brew shellenv)"
+echo >> "$HOME/.zprofile"
+
+# Determine Homebrew path for different platforms
+if [[ -x "/opt/homebrew/bin/brew" ]]; then
+  BREW_PATH="/opt/homebrew/bin/brew"
+elif [[ -x "/usr/local/bin/brew" ]]; then
+  BREW_PATH="/usr/local/bin/brew"
+elif [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+  BREW_PATH="/home/linuxbrew/.linuxbrew/bin/brew"
+else
+  BREW_PATH="$(command -v brew)"
+fi
+
+echo "eval \"\$(${BREW_PATH} shellenv)\"" >> "$HOME/.zprofile"
+eval "$(${BREW_PATH} shellenv)"
 
 # Install all packages from Brewfile
 brew bundle --file="Brewfile"

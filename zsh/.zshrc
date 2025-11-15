@@ -78,3 +78,27 @@ bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^[w' kill-region
 # bindkey '^I' autosuggest-accept  # Ensure this is after plugin loading
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/opt/homebrew/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/opt/homebrew/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/opt/homebrew/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/opt/homebrew/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Android
+export ANDROID_SDK_ROOT=~/Library/Android/sdk
+export PATH="$ANDROID_SDK_ROOT/platform-tools:$PATH"export PATH=$PATH:$HOME/.maestro/bin

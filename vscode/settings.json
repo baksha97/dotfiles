@@ -1,11 +1,46 @@
 {
     "git.autofetch": true,
     "terminal.external.osxExec": "Alacritty.app",
-    "github.copilot.editor.enableAutoCompletions": true,
     "editor.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
     "github.copilot.advanced": {},
-    "workbench.sideBar.location": "right",
     "explorer.sortOrderLexicographicOptions": "upper",
     "explorer.compactFolders": false,
+    "editor.minimap.enabled": false,
+    "[markdown]": {
+        "diffEditor.ignoreTrimWhitespace": true
+    },
+    "python.analysis.typeCheckingMode": "standard",
+    "[dockercompose]": {
+        "editor.defaultFormatter": "ms-azuretools.vscode-containers"
+    },
+    "diffEditor.ignoreTrimWhitespace": false,
+    "diffEditor.hideUnchangedRegions.enabled": true,
+    "github.copilot.chat.editor.temporalContext.enabled": true,
+    "chat.agent.maxRequests": 100,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "remote.SSH.remotePlatform": {
+        "coder-vscode.coder.tb-infra.com--travis--Core.main": "linux",
+        "coder-vscode.coder.tb-infra.com--travis--core.main": "linux",
+        "coder-vscode.coder.tb-infra.com--baksha97--admin.main": "linux",
+        "coder-vscode.coder.tb-infra.com--baksha97--mountless-workspace.main": "linux",
+        "coder-vscode.coder.tb-infra.com--baksha97--n8n-mcp.main": "linux"
+    },
+    "remote.SSH.connectTimeout": 1800,
+    "chat.tools.terminal.autoApprove": {
+        "curl": true,
+        "/root/.local/bin/uv": true,
+        "npx": true,
+        "mkdir": true,
+        "mv": true,
+        "uv": true,
+        "pytest": true,
+        "sed": true
+    },
+    "chat.mcp.discovery.enabled": {
+        "claude-desktop": true
+    },
+    "github.copilot.chat.agent.thinkingTool": true,
+    "github.copilot.chat.alternateGptPrompt.enabled": true,
+    "claudeCode.environmentVariables": [],
 }

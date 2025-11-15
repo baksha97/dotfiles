@@ -59,5 +59,13 @@
       "command": "deleteFile",
       "key": "d",
       "when": "filesExplorerFocus && !inputFocus"
+    },
+    {
+        "key": "shift+enter",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": {
+            "text": "\\\r\n"
+        },
+        "when": "terminalFocus"
     }
 ]

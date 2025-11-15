@@ -1,9 +1,5 @@
 [core]
-        excludesfile = ~/.gitignore
-[credential]
-	helper = /usr/local/share/gcm-core/git-credential-manager
-[credential "https://dev.azure.com"]
-	useHttpPath = true
+	excludesfile = ~/.gitignore
 [user]
 	name = Alfayed Baksh
 	email = baksha97@gmail.com
@@ -12,3 +8,8 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[credential]
+	helper = 
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true

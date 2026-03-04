@@ -1,0 +1,64 @@
+{
+  "schemes" : [
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "vendorID" : "0x46d",
+          "productName" : "USB Receiver",
+          "productID" : "0xc548"
+        },
+        "app" : "com.riotgames.RiotGames.RiotClient"
+      },
+      "pointer" : {
+        "disableAcceleration" : true
+      }
+    },
+    {
+      "if" : {
+        "app" : "com.riotgames.leagueoflegends",
+        "device" : {
+          "productID" : "0xc548",
+          "vendorID" : "0x46d",
+          "productName" : "USB Receiver",
+          "category" : "mouse"
+        }
+      },
+      "pointer" : {
+        "disableAcceleration" : true
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "serialNumber" : "158B33523232",
+          "vendorID" : "0x46d",
+          "productID" : "0xc08b",
+          "category" : "mouse",
+          "productName" : "G502 HERO Gaming Mouse"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 1
+        }
+      }
+    },
+    {
+      "if" : {
+        "app" : "com.riotgames.leagueoflegends",
+        "device" : {
+          "productID" : "0xc08b",
+          "productName" : "G502 HERO Gaming Mouse",
+          "category" : "mouse",
+          "vendorID" : "0x46d",
+          "serialNumber" : "158B33523232"
+        }
+      },
+      "pointer" : {
+        "disableAcceleration" : true
+      }
+    }
+  ],
+  "$schema" : "https:\/\/schema.linearmouse.app\/0.10.0"
+}

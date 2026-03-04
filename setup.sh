@@ -38,9 +38,23 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
   stow vscode -t "$HOME/.config/Code/User" --adopt
 fi
 
-# Git configuration
+# Git configuration — select a profile (personal or work)
+echo ""
+echo "Available git profiles:"
+for profile in git/profiles/*; do
+  echo "  - $(basename "$profile")"
+done
+echo ""
+read "git_profile?Select git profile [personal]: "
+git_profile="${git_profile:-personal}"
+
+if [ ! -f "git/profiles/$git_profile" ]; then
+  echo "Error: profile '$git_profile' not found in git/profiles/"
+  exit 1
+fi
+
+cp "git/profiles/$git_profile" git/.gitconfig-profile
 stow git -t "$HOME"/ --adopt
-git config --global core.excludesfile "$HOME"/.gitignore
 
 # Source .zshrc
 source ~/.zshrc

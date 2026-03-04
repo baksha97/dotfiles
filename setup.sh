@@ -38,17 +38,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 fi
 
 # Git configuration — select a profile (personal or work)
-git_profile="${1:-}"
-if [ -z "$git_profile" ]; then
-  echo ""
-  echo "Available git profiles:"
-  for profile in git/profiles/*; do
-    echo "  - $(basename "$profile")"
-  done
-  echo ""
-  read "git_profile?Select git profile [personal]: "
-  git_profile="${git_profile:-personal}"
-fi
+git_profile="${1:-personal}"
 
 if [ ! -f "git/profiles/$git_profile" ]; then
   echo "Error: profile '$git_profile' not found in git/profiles/"

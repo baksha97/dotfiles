@@ -98,6 +98,25 @@ gct() {
   fi
 }
 
+# Usage: grmt [<worktree-path>]
+# With no args, removes the worktree you're currently in.
+# With a path arg, removes that worktree instead.
+# Either way, cd's to the main repo root afterwards.
+grmt() {
+  local target="${1:-$(git rev-parse --show-toplevel)}"
+  target="${target:A}"  # resolve to absolute/canonical path
+
+  local common_dir=$(git -C "$target" rev-parse --git-common-dir)
+  [[ "$common_dir" = /* ]] || common_dir="${target}/$common_dir"
+  local repo_root=$(dirname "$common_dir")
+
+  if [[ "${target:A}" = "${repo_root:A}" ]]; then
+    echo "grmt: '$target' is the main repo checkout, not a worktree" >&2
+    return 1
+  fi
+
+  cd "$repo_root" && git worktree remove "$target"
+}
 
 # Keybindings
 bindkey -e

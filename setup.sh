@@ -58,4 +58,25 @@ fi
 cp "git/profiles/$git_profile" git/.gitconfig-profile
 stow git -t "$HOME"/ --adopt
 
+# Agent Skills — symlink skill directories for Copilot CLI and Cursor IDE
+# VS Code discovers skills via chat.agentSkillsLocations in vscode/settings.json
+skill_targets=("$HOME/.copilot/skills" "$HOME/.cursor/skills")
+for target_dir in "${skill_targets[@]}"; do
+  mkdir -p "$target_dir"
+done
+
+for skill in agent-skills/skills/*/; do
+  [ -d "$skill" ] || continue
+  skill_name="$(basename "$skill")"
+  skill_abs="$(cd "$skill" && pwd)"
+  for target_dir in "${skill_targets[@]}"; do
+    link="$target_dir/$skill_name"
+    if [ -L "$link" ]; then
+      rm "$link"
+    fi
+    ln -s "$skill_abs" "$link"
+    echo "  Linked $skill_name -> $target_dir/"
+  done
+done
+
 echo "Dotfiles installation complete! Open a new shell to pick up changes."

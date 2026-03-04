@@ -73,25 +73,29 @@ alias c='clear'
 
 # Usage: gct <branch-name>
 # e.g.   gct travis/CATCH-123/sample
-# Creates a new worktree at ../<repo>-<branch-with-hyphens> from origin/main and cd's into it.
+# If <branch-name> exists on origin, creates a worktree tracking that remote branch.
+# Otherwise, creates a new branch from origin/main, pushes it, and cd's into the worktree.
 # Safe to run from any worktree or the main repo checkout.
 gct() {
   local branch="$1"
 
-  # --git-common-dir always points to the shared .git of the main repo,
-  # even when called from inside a worktree, so repo_root is always correct.
   local common_dir=$(git rev-parse --git-common-dir)
-  [[ "$common_dir" = /* ]] || common_dir="$(git rev-parse --show-toplevel)/$common_dir"  # resolve relative path (main repo case)
-  local repo_root=$(dirname "$common_dir")   # e.g. /Code/emu/mobile-apps
-  local repo_name=$(basename "$repo_root")   # e.g. mobile-apps
+  [[ "$common_dir" = /* ]] || common_dir="$(git rev-parse --show-toplevel)/$common_dir"
+  local repo_root=$(dirname "$common_dir")
+  local repo_name=$(basename "$repo_root")
 
-  local safe_branch="${branch//\//-}"        # replace slashes → hyphens, e.g. travis-CATCH-123-sample
-  local worktree_path="$(dirname "$repo_root")/${repo_name}-${safe_branch}"  # e.g. /Code/emu/mobile-apps-travis-CATCH-123-sample
+  local safe_branch="${branch//\//-}"
+  local worktree_path="$(dirname "$repo_root")/${repo_name}-${safe_branch}"
 
-  git fetch origin main && \
-  git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
-  cd "$worktree_path" && \
-  git push -u origin HEAD                    
+  if git fetch origin "$branch" 2>/dev/null; then
+    git worktree add --track -b "$branch" "$worktree_path" "origin/$branch" && \
+    cd "$worktree_path"
+  else
+    git fetch origin main && \
+    git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
+    cd "$worktree_path" && \
+    git push -u origin HEAD
+  fi
 }
 
 

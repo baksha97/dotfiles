@@ -1,5 +1,21 @@
 // Place your key bindings in this file to override the defaults
 [
+    {
+        "key": "shift+enter",
+        "command": "workbench.action.terminal.sendSequence",
+        "when": "terminalFocus",
+        "args": {
+            "text": "\\\r\n"
+        }
+    },
+    {
+        "key": "ctrl+enter",
+        "command": "workbench.action.terminal.sendSequence",
+        "when": "terminalFocus",
+        "args": {
+            "text": "\\\r\n"
+        }
+    },
     // NAVIGATION
     {
       "key": "ctrl+shift+a",
@@ -49,11 +65,6 @@
       "key": "shift+n",
       "command": "explorer.newFolder",
       "when": "explorerViewletFocus"
-    },
-    {
-      "key": "shift+n",
-      "command": "workbench.action.newWindow",
-      "when": "!explorerViewletFocus"
     },
     {
       "command": "deleteFile",

@@ -8,6 +8,7 @@ backup/
 # Ignore everything under alacritty/.config/ except the actual alacritty config
 stow/alacritty/.config/*
 !stow/alacritty/.config/alacritty/
+!stow/alacritty/.config/linearmouse/
 
 # VS Code internal tracking file (changes per machine)
 stow/vscode/.vscode/extensions/.obsolete

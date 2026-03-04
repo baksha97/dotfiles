@@ -33,9 +33,9 @@ cd ~/dotfiles
 ### All Commands
 
 ```bash
-./main.sh setup [profile]    # bootstrap the system (default profile: personal)
-./main.sh backup [profile]   # dump current Homebrew state to Brewfile
-./main.sh alacritty-icon     # replace the Alacritty app icon
+./main.sh setup [profile]        # bootstrap the system (default profile: personal)
+./main.sh brew backup [profile]  # dump current Homebrew state to Brewfile.<profile>
+./main.sh alacritty-icon         # replace the Alacritty app icon
 ```
 
 ## How It Works
@@ -166,8 +166,8 @@ The `.gitconfig-profile` file is gitignored so your active identity stays local.
 Each profile has its own complete Brewfile at `homebrew/Brewfile.<profile>`. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
 
 ```bash
-./main.sh backup           # dumps to homebrew/Brewfile.personal
-./main.sh backup work      # dumps to homebrew/Brewfile.work
+./main.sh brew backup           # dumps to homebrew/Brewfile.personal
+./main.sh brew backup work      # dumps to homebrew/Brewfile.work
 ```
 
 ### Adding a New Profile
@@ -299,8 +299,8 @@ URL hints are enabled with `Ctrl+Shift+U` for clickable links.
 Dumps the current Homebrew state (formulae, casks, taps, VS Code extensions) into the active profile's Brewfile:
 
 ```bash
-./main.sh backup           # dumps to homebrew/Brewfile.personal
-./main.sh backup work      # dumps to homebrew/Brewfile.work
+./main.sh brew backup           # dumps to homebrew/Brewfile.personal
+./main.sh brew backup work      # dumps to homebrew/Brewfile.work
 ```
 
 ### `alacritty-icon`

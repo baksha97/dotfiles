@@ -29,6 +29,18 @@ The script removes the existing `.zshrc` file and adopts new configurations. The
 
 The script sets up global Git configurations and ignores specified in `.gitignore`.
 
+## Agent Skills
+
+The script symlinks [Agent Skills](https://agentskills.io/) (`SKILL.md` packages) from `agent-skills/skills/` into the home-directory paths where each AI coding agent discovers them:
+
+| Tool | Discovery method |
+|---|---|
+| **VS Code Copilot** | `chat.agentSkillsLocations` setting in `vscode/settings.json` points at `~/.copilot/skills` (populated by symlinks) |
+| **Copilot CLI** | Directory symlinks into `~/.copilot/skills/` |
+| **Cursor IDE** | Directory symlinks into `~/.cursor/skills/` |
+
+To add a new skill, create a directory under `agent-skills/skills/` with a `SKILL.md` file and re-run `setup.sh`.
+
 ## Source .zshrc
 
 Finally, the script reloads the `.zshrc` file, applying the new configurations. This is done using the `source ~/.zshrc` command.

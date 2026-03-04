@@ -27,5 +27,8 @@
   "docker.extension.enableComposeLanguageServer": false,
   "swift.disableAutoResolve": true,
   "scm.repositories.selectionMode": "single",
-  "chat.viewSessions.orientation": "stacked"
+  "chat.viewSessions.orientation": "stacked",
+  "chat.agentSkillsLocations": [
+    "~/.copilot/skills"
+  ]
 }

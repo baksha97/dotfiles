@@ -2,7 +2,7 @@
 
 # Dotfiles
 
-Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and automated via a single `setup.sh` script. One command bootstraps a fresh macOS (or Linux) machine with shell, editor, terminal, git, and AI agent skill configurations.
+Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS (or Linux) machine with shell, editor, terminal, git, and AI agent skill configurations.
 
 ## Table of Contents
 
@@ -11,13 +11,13 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 - [Repository Structure](#repository-structure)
 - [Stow Packages](#stow-packages)
 - [What Gets Installed](#what-gets-installed)
-- [Git Profile Selection](#git-profile-selection)
+- [Profiles](#profiles)
 - [Agent Skills](#agent-skills)
 - [Shell Configuration](#shell-configuration)
 - [Tmux Configuration](#tmux-configuration)
 - [Alacritty Configuration](#alacritty-configuration)
 - [VS Code / Cursor Configuration](#vs-code--cursor-configuration)
-- [Utility Scripts](#utility-scripts)
+- [Utility Commands](#utility-commands)
 - [Custom Shell Functions](#custom-shell-functions)
 - [Adding New Configurations](#adding-new-configurations)
 
@@ -26,8 +26,16 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 ```bash
 git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./setup.sh          # defaults to "personal" git profile
-./setup.sh work     # use a specific profile directly
+./main.sh setup          # full setup with "personal" profile (default)
+./main.sh setup work     # full setup with "work" profile
+```
+
+### All Commands
+
+```bash
+./main.sh setup [profile]    # bootstrap the system (default profile: personal)
+./main.sh backup [profile]   # dump current Homebrew state to Brewfile
+./main.sh alacritty-icon     # replace the Alacritty app icon
 ```
 
 ## How It Works
@@ -54,7 +62,7 @@ dotfiles/
 
 ```
 dotfiles/
-├── agent-skills/          # AI coding agent skill packages
+├── .ai-agent/             # AI coding agent configuration
 │   └── skills/
 │       ├── android-coroutines/
 │       ├── android-emulator-skill/
@@ -81,11 +89,16 @@ dotfiles/
 │   └── .vscode/extensions/
 ├── zsh/                   # Zsh shell config
 │   └── .zshrc
-├── Brewfile               # Homebrew packages, casks, and VS Code extensions
-├── Brewfile.lock.json     # Locked dependency versions
-├── setup.sh               # Main bootstrap script
-├── backup.sh              # Dumps current Homebrew state to Brewfile
-└── change-alacritty-icon.sh  # Replaces Alacritty app icon
+├── homebrew/              # Homebrew package management
+│   ├── Brewfile.personal  # Packages for the personal profile
+│   └── Brewfile.work      # Packages for the work profile
+├── terminal/              # macOS Terminal.app profiles
+│   └── Monokai.terminal   # Monokai color theme
+├── scripts/               # Implementation scripts
+│   ├── setup.sh           # System bootstrap
+│   ├── backup.sh          # Brewfile dump
+│   └── alacritty-icon.sh  # Icon replacement
+└── main.sh                # Single entrypoint for all commands
 ```
 
 ## Stow Packages
@@ -107,15 +120,16 @@ VS Code target paths:
 
 ## What Gets Installed
 
-The `setup.sh` script performs these steps in order:
+The `setup` command performs these steps in order:
 
-1. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
-2. **Install Homebrew** if not present
-3. **Install all Brewfile packages** — CLI tools, casks, fonts, and VS Code extensions
-4. **Install SDKMAN!** for JVM SDK management
-5. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
-6. **Select a git profile** — copies the chosen identity into `~/.gitconfig-profile`
-7. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
+1. **Validate profile** — ensures the selected profile exists in `git/profiles/`
+2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
+3. **Install Homebrew** if not present
+4. **Install Brewfile packages** — installs from `homebrew/Brewfile.<profile>`
+5. **Install SDKMAN!** for JVM SDK management
+6. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
+7. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
+8. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
 
 ### Brewfile Highlights
 
@@ -127,27 +141,44 @@ The `setup.sh` script performs these steps in order:
 | **Apps** | Alacritty, VS Code, Google Chrome, Rectangle, Spotify, Multipass |
 | **VS Code extensions** | Copilot, Vim, Docker, Python, TOML, GitHub Actions |
 
-## Git Profile Selection
+## Profiles
 
-Git identity is managed through swappable profiles stored in `git/profiles/`. Running `./setup.sh` defaults to the `personal` profile. Pass a profile name to use a different one:
+Profiles are the central mechanism for switching between environments (e.g., personal vs work). The selected profile affects both **git identity** and **Homebrew packages**. The default profile is `personal`.
 
 ```bash
-./setup.sh          # uses "personal"
-./setup.sh work     # uses "work"
+./main.sh setup          # uses "personal"
+./main.sh setup work     # uses "work"
 ```
 
-The selected profile is copied to `git/.gitconfig-profile`, which is included by `.gitconfig` via:
+### Git Identity
+
+Each profile has a corresponding file in `git/profiles/` containing `[user]` name and email fields. During setup, the selected profile is copied to `git/.gitconfig-profile`, which is included by `.gitconfig` via:
 
 ```ini
 [include]
     path = ~/.gitconfig-profile
 ```
 
-The `.gitconfig-profile` file is gitignored so your active identity stays local. To add a new profile, create a file under `git/profiles/` with `[user]` name and email fields.
+The `.gitconfig-profile` file is gitignored so your active identity stays local.
+
+### Homebrew Packages
+
+Each profile has its own complete Brewfile at `homebrew/Brewfile.<profile>`. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
+
+```bash
+./main.sh backup           # dumps to homebrew/Brewfile.personal
+./main.sh backup work      # dumps to homebrew/Brewfile.work
+```
+
+### Adding a New Profile
+
+1. Create `git/profiles/<name>` with `[user]` name and email fields
+2. Create `homebrew/Brewfile.<name>` with the desired packages
+3. Run `./main.sh setup <name>`
 
 ## Agent Skills
 
-[Agent Skills](https://agentskills.io/) are `SKILL.md` packages that give AI coding agents specialized domain knowledge. The setup script symlinks the `agent-skills/skills/` directory so multiple tools discover them automatically:
+[Agent Skills](https://agentskills.io/) are `SKILL.md` packages that give AI coding agents specialized domain knowledge. The setup script symlinks the `.ai-agent/skills/` directory so multiple tools discover them automatically:
 
 | Tool | Discovery Path |
 |------|---------------|
@@ -164,7 +195,7 @@ The `.gitconfig-profile` file is gitignored so your active identity stays local.
 | `gradle-build-performance` | Build performance debugging and optimization |
 | `kotlin-concurrency-expert` | Coroutine review and thread safety remediation |
 
-To add a new skill, create a directory under `agent-skills/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
+To add a new skill, create a directory under `.ai-agent/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
 
 ## Shell Configuration
 
@@ -261,22 +292,23 @@ URL hints are enabled with `Ctrl+Shift+U` for clickable links.
 | `R` | File explorer | Rename file |
 | `D` | File explorer | Delete file |
 
-## Utility Scripts
+## Utility Commands
 
-### `backup.sh`
+### `backup`
 
-Dumps the current Homebrew state (formulae, casks, taps, VS Code extensions) into the `Brewfile`:
+Dumps the current Homebrew state (formulae, casks, taps, VS Code extensions) into the active profile's Brewfile:
 
 ```bash
-./backup.sh
+./main.sh backup           # dumps to homebrew/Brewfile.personal
+./main.sh backup work      # dumps to homebrew/Brewfile.work
 ```
 
-### `change-alacritty-icon.sh`
+### `alacritty-icon`
 
 Replaces the default Alacritty icon with a custom one from [macOSicons](https://macosicons.com/). Backs up the original icon before replacing.
 
 ```bash
-./change-alacritty-icon.sh
+./main.sh alacritty-icon
 ```
 
 ## Custom Shell Functions
@@ -305,8 +337,8 @@ To add a new tool's config to this repo:
 
 1. Create a new directory at the repo root named after the tool (e.g., `neovim/`)
 2. Mirror the directory structure relative to `$HOME` inside it (e.g., `neovim/.config/nvim/init.lua`)
-3. Add a `stow` command to `setup.sh`:
+3. Add a `stow` command to `scripts/setup.sh`:
    ```bash
    stow neovim -t "$HOME" --adopt
    ```
-4. Run `setup.sh` or manually run the stow command to create the symlinks
+4. Run `./main.sh setup` or manually run the stow command to create the symlinks

@@ -23,6 +23,9 @@ if [ ! -d "$HOME/.sdkman" ]; then
   source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
 
+# Clean up .DS_Store files that cause stow conflicts on macOS
+find . -name .DS_Store -delete
+
 # Remove existing .zshrc and adopt new configurations
 rm -f "$HOME"/.zshrc
 stow zsh -t "$HOME" --adopt
@@ -47,6 +50,7 @@ fi
 
 cp "git/profiles/$git_profile" git/.gitconfig-profile
 stow git -t "$HOME"/ --adopt
+echo "  Git profile set to '$git_profile'"
 
 # Agent Skills — symlink the skills directory for Copilot CLI and Cursor IDE
 # VS Code discovers skills via chat.agentSkillsLocations in vscode/settings.json

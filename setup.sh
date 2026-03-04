@@ -24,14 +24,13 @@ if [ ! -d "$HOME/.sdkman" ]; then
 fi
 
 # Remove existing .zshrc and adopt new configurations
-rm "$HOME"/.zshrc
+rm -f "$HOME"/.zshrc
 stow zsh -t "$HOME" --adopt
 stow powerlevel10k -t "$HOME" --adopt
 stow tmux -t "$HOME" --adopt
-stow vscode -t "$HOME" --adopt
 stow alacritty -t "$HOME" --adopt
 
-# Different path for VSCode settings on macOS and Linux
+# VSCode settings — platform-specific path
 if [[ "$OSTYPE" == "darwin"* ]]; then
   stow vscode -t "$HOME/Library/Application Support/Code/User" --adopt
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -39,14 +38,17 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 fi
 
 # Git configuration — select a profile (personal or work)
-echo ""
-echo "Available git profiles:"
-for profile in git/profiles/*; do
-  echo "  - $(basename "$profile")"
-done
-echo ""
-read "git_profile?Select git profile [personal]: "
-git_profile="${git_profile:-personal}"
+git_profile="${1:-}"
+if [ -z "$git_profile" ]; then
+  echo ""
+  echo "Available git profiles:"
+  for profile in git/profiles/*; do
+    echo "  - $(basename "$profile")"
+  done
+  echo ""
+  read "git_profile?Select git profile [personal]: "
+  git_profile="${git_profile:-personal}"
+fi
 
 if [ ! -f "git/profiles/$git_profile" ]; then
   echo "Error: profile '$git_profile' not found in git/profiles/"
@@ -56,7 +58,4 @@ fi
 cp "git/profiles/$git_profile" git/.gitconfig-profile
 stow git -t "$HOME"/ --adopt
 
-# Source .zshrc
-source ~/.zshrc
-
-echo "Dotfiles installation complete!"
+echo "Dotfiles installation complete! Open a new shell to pick up changes."

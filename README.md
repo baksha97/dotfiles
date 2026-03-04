@@ -65,9 +65,12 @@ dotfiles/
 ├── main.sh                        # Single entrypoint for all commands
 ├── stow/                          # GNU Stow packages (symlinked to $HOME)
 │   ├── alacritty/                 # Alacritty terminal emulator config
-│   │   └── .config/alacritty/
-│   │       ├── alacritty.toml
-│   │       └── themes/            # 130+ color themes
+│   │   └── .config/
+│   │       ├── alacritty/
+│   │       │   ├── alacritty.toml
+│   │       │   └── themes/        # 130+ color themes
+│   │       └── linearmouse/
+│   │           └── linearmouse.json  # Per-app pointer acceleration settings
 │   ├── git/                       # Git config and profiles
 │   │   ├── .gitconfig
 │   │   ├── .gitignore             # Global gitignore
@@ -112,7 +115,7 @@ All stow packages live under `stow/`. The table below shows where each package's
 | `zsh` | `.zshrc` | `$HOME` |
 | `powerlevel10k` | `.p10k.zsh` | `$HOME` |
 | `tmux` | `.tmux.conf` | `$HOME` |
-| `alacritty` | `.config/alacritty/` | `$HOME` |
+| `alacritty` | `.config/alacritty/`, `.config/linearmouse/` | `$HOME` |
 | `git` | `.gitconfig`, `.gitignore` | `$HOME` |
 | `vscode` | `settings.json`, `keybindings.json`, extensions | Platform-specific VS Code `User/` directory |
 
@@ -126,12 +129,13 @@ The `setup` command performs these steps in order:
 
 1. **Validate profile** — ensures the selected profile exists in `stow/git/profiles/`
 2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
-3. **Install Homebrew** if not present
+3. **Install Homebrew** if not present, then detect its path for the current platform (Apple Silicon, Intel Mac, or Linux) and write `shellenv` to `~/.zprofile`
 4. **Install Brewfile packages** — installs from `meta/homebrew/Brewfile.<profile>`
 5. **Install SDKMAN!** for JVM SDK management
 6. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
 7. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
 8. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
+9. **Replace Alacritty icon** (macOS only) — runs automatically; prints a warning on unsupported platforms
 
 ### Brewfile Highlights
 
@@ -307,7 +311,9 @@ Dumps the current Homebrew state (formulae, casks, taps, VS Code extensions) int
 
 ### `alacritty-icon`
 
-Replaces the default Alacritty icon with a custom one from [macOSicons](https://macosicons.com/). Backs up the original icon before replacing.
+Replaces the default Alacritty icon with a custom one from [macOSicons](https://macosicons.com/). Backs up the original icon before replacing. This runs automatically at the end of `setup` on macOS; on other platforms a warning is printed.
+
+**macOS only.**
 
 ```bash
 ./main.sh alacritty-icon

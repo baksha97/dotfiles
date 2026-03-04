@@ -1,0 +1,3 @@
+\.DS_Store
+# Only stow .config/alacritty — ignore anything else that appears under .config/
+^\.config/(?!alacritty(/|$))

@@ -1,7 +1,0 @@
-{
-    "git.autofetch": true,
-    "terminal.external.osxExec": "Alacritty.app",
-    "github.copilot.editor.enableAutoCompletions": true,
-    "editor.fontFamily": "JetBrainsMono Nerd Font",
-    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
-}

@@ -41,6 +41,12 @@ case "$command" in
       *)      echo "Unknown brew subcommand: $subcommand"; usage; exit 1 ;;
     esac
     ;;
-  alacritty-icon) source "$DOTFILES_DIR/meta/scripts/alacritty-icon.sh" "$@" ;;
+  alacritty-icon)
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+      echo "Error: alacritty-icon is not implemented for this OS ($OSTYPE)" >&2
+      exit 1
+    fi
+    source "$DOTFILES_DIR/meta/scripts/alacritty-icon.sh" "$@"
+    ;;
   *)              usage; exit 1 ;;
 esac

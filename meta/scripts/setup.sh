@@ -23,6 +23,21 @@ if ! command -v brew &> /dev/null; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
+# Determine Homebrew path for different platforms
+if [[ -x "/opt/homebrew/bin/brew" ]]; then
+  BREW_PATH="/opt/homebrew/bin/brew"
+elif [[ -x "/usr/local/bin/brew" ]]; then
+  BREW_PATH="/usr/local/bin/brew"
+elif [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+  BREW_PATH="/home/linuxbrew/.linuxbrew/bin/brew"
+else
+  BREW_PATH="$(command -v brew)"
+fi
+
+echo >> "$HOME/.zprofile"
+echo "eval \"\$(${BREW_PATH} shellenv)\"" >> "$HOME/.zprofile"
+eval "$(${BREW_PATH} shellenv)"
+
 # Install packages for the selected profile
 brew bundle --file="meta/homebrew/Brewfile.$profile"
 

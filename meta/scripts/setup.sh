@@ -139,4 +139,11 @@ for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills"; do
   echo "  Linked $target -> $skills_src"
 done
 
+# Alacritty icon
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  source "$DOTFILES_DIR/meta/scripts/alacritty-icon.sh"
+else
+  echo "  Warning: Alacritty icon replacement not supported on this OS ($OSTYPE)"
+fi
+
 echo "Dotfiles installation complete! Open a new shell to pick up changes."

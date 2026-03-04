@@ -1,0 +1,31 @@
+{
+  "git.autofetch": true,
+  "terminal.external.osxExec": "Alacritty.app",
+  "github.copilot.editor.enableAutoCompletions": true,
+  "editor.fontFamily": "JetBrainsMono Nerd Font",
+  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+  "editor.minimap.enabled": false,
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.tabSize": 2,
+  "[github-actions-workflow]": {
+    "editor.defaultFormatter": "bluebrown.yamlfmt"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "diffEditor.ignoreTrimWhitespace": true,
+  "makefile.configureOnOpen": true,
+  "[dockercompose]": {
+    "editor.defaultFormatter": "bluebrown.yamlfmt"
+  },
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "docker.extension.enableComposeLanguageServer": false,
+  "swift.disableAutoResolve": true,
+  "scm.repositories.selectionMode": "single",
+  "chat.viewSessions.orientation": "stacked"
+}

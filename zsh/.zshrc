@@ -88,10 +88,10 @@ gct() {
   local safe_branch="${branch//\//-}"        # replace slashes → hyphens, e.g. travis-CATCH-123-sample
   local worktree_path="$(dirname "$repo_root")/${repo_name}-${safe_branch}"  # e.g. /Code/emu/mobile-apps-travis-CATCH-123-sample
 
-  git fetch origin main && \                 # ensure worktree is based on latest main
-  git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \  # --no-track avoids inheriting origin/main as upstream
+  git fetch origin main && \
+  git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
   cd "$worktree_path" && \
-  git push -u origin HEAD                    # publish branch and set origin/<branch> as upstream; plain `git push` works from here on
+  git push -u origin HEAD                    
 }
 
 

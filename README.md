@@ -35,8 +35,7 @@ The script symlinks [Agent Skills](https://agentskills.io/) (`SKILL.md` packages
 
 | Tool | Discovery method |
 |---|---|
-| **VS Code Copilot** | `chat.agentSkillsLocations` setting in `vscode/settings.json` points at `~/.copilot/skills` (populated by symlinks) |
-| **Copilot CLI** | `~/.copilot/skills` symlinked to `agent-skills/skills/` |
+| **Copilot CLI & VSCode IDE** | `~/.copilot/skills` symlinked to `agent-skills/skills/` |
 | **Cursor IDE** | `~/.cursor/skills` symlinked to `agent-skills/skills/` |
 
 To add a new skill, create a directory under `agent-skills/skills/` with a `SKILL.md` file. It will be discovered automatically -- no need to re-run `setup.sh`.

@@ -8,12 +8,17 @@ if [ ! -f "$icon_path" ]; then
   exit 1
 fi
 
-expected_hash="68de1ddce6"
-icon_url=https://github.com/hmarr/dotfiles/files/8549877/alacritty.icns.gz
+icon_url=https://s3.macosicons.com/macosicons/icons/UcDQMJkqVL/icnsFile_e80a1d3cbed491f9c073079d794c0f78_UcDQMJkqVL.icns
 
-current_hash="$(shasum "$icon_path" | head -c 10)"
-if [ "$current_hash" = "$expected_hash" ]; then
+tmp_icon="$(mktemp)"
+echo "Downloading replacement icon"
+curl -sL "$icon_url" -o "$tmp_icon"
+
+current_hash="$(shasum "$icon_path" | head -c 40)"
+new_hash="$(shasum "$tmp_icon" | head -c 40)"
+if [ "$current_hash" = "$new_hash" ]; then
   echo "Icon already replaced, nothing to do"
+  rm -f "$tmp_icon"
   exit 0
 fi
 
@@ -22,8 +27,7 @@ if [ ! -f "$icon_path.backup" ]; then
   cp "$icon_path" "$icon_path.backup"
 fi
 
-echo "Downloading replacement icon"
-curl -sL "$icon_url" | gunzip > "$icon_path"
+mv "$tmp_icon" "$icon_path"
 
 touch /Applications/Alacritty.app
 killall Finder

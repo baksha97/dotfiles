@@ -125,6 +125,7 @@ for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills"; do
   elif [ -d "$target" ]; then
     rm -rf "$target"
   fi
+  mkdir -p "$(dirname "$target")"
   ln -s "$skills_src" "$target"
   echo "  Linked $target -> $skills_src"
 done

@@ -127,6 +127,15 @@ if ! command -v vercel &>/dev/null; then
   $SUDO npm install -g vercel
 fi
 
+# ── typos ────────────────────────────────────────────────────────────────────
+if ! command -v typos &>/dev/null; then
+  echo "Installing typos..."
+  curl -fsSL "https://github.com/crate-ci/typos/releases/latest/download/typos-${ARCH_MUSL}-unknown-linux-musl.tar.gz" \
+    | tar -xz -C /tmp ./typos
+  $SUDO install /tmp/typos /usr/local/bin/typos
+  rm /tmp/typos
+fi
+
 # ── opencode ─────────────────────────────────────────────────────────────────
 if ! command -v opencode &>/dev/null; then
   echo "Installing opencode..."

@@ -96,6 +96,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 fi
 
 if [ -n "$vscode_dir" ]; then
+  mkdir -p "$vscode_dir"
   vscode_stow_files=(.vscode keybindings.json settings.json)
   for f in "${vscode_stow_files[@]}"; do
     target="$vscode_dir/$f"

@@ -38,8 +38,10 @@ case "$command" in
   setup)
     if [[ "$OSTYPE" == "darwin"* ]]; then
       source "$DOTFILES_DIR/meta/scripts/setup-macos.sh" "$@"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    elif command -v apt-get &>/dev/null; then
       source "$DOTFILES_DIR/meta/scripts/setup-linux.sh" "$@"
+    elif command -v apk &>/dev/null; then
+      source "$DOTFILES_DIR/meta/scripts/setup-alpine.sh" "$@"
     else
       echo "Unsupported OS: $OSTYPE"; exit 1
     fi

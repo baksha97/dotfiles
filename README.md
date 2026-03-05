@@ -85,7 +85,8 @@ dotfiles/
 │   │   ├── settings.json
 │   │   └── keybindings.json
 │   └── zsh/                       # Zsh shell config
-│       └── .zshrc
+│       ├── .zshrc
+│       └── .zshrc.d/              # Modular zsh configurations
 └── meta/                          # Support files (not stowed)
     ├── .ai-agent/                 # AI coding agent configuration
     │   └── skills/

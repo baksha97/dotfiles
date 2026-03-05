@@ -1,6 +1,6 @@
 tap "anomalyco/tap"
 tap "homebrew/bundle"
-brew "act"
+brew "ncdu"
 brew "ca-certificates"
 brew "ansible"
 brew "aria2"

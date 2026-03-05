@@ -18,3 +18,5 @@ stow/vscode/.vscode/extensions/.obsolete
 stow/git/.gitconfig-profile
 
 node_modules/
+
+.claude/

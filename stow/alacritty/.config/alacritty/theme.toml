@@ -1,0 +1,9 @@
+# Default Alacritty Colors
+[colors]
+draw_bold_text_with_bright_colors = true
+
+# To use a specific theme, uncomment one of the following lines
+# (make sure the path matches your installation)
+# import = [
+#     "~/.config/alacritty/themes/themes/tokyo-night.toml",
+# ]

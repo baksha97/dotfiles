@@ -1,14 +1,41 @@
 [include]
 	path = ~/.gitconfig-profile
+
+[user]
+	useConfigOnly = true
+
 [core]
 	excludesfile = ~/.gitignore
+	editor = code --wait
+	autocrlf = input
+
+[pull]
+	rebase = true
+
+[push]
+	autoSetupRemote = true
+
+[init]
+	defaultBranch = main
+
+[alias]
+	co = checkout
+	br = branch
+	ci = commit
+	st = status
+	ps = push
+	pl = pull
+	last = log -1 HEAD
+
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+
 [credential]
 	helper = 
-	helper = /usr/local/share/gcm-core/git-credential-manager
+	helper = !gh auth git-credential
+
 [credential "https://dev.azure.com"]
 	useHttpPath = true

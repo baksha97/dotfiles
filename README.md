@@ -24,8 +24,9 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 ```bash
 git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./main.sh setup          # full setup with "personal" profile (default)
-./main.sh setup work     # full setup with "work" profile
+./main.sh setup                  # idempotent setup (default: personal)
+./main.sh setup --with-gui       # setup with GUI apps (VS Code, Chrome, etc.)
+./main.sh setup --dry-run        # preview what will happen
 ```
 
 ### All Commands
@@ -36,11 +37,21 @@ cd ~/dotfiles
 ./main.sh alacritty-icon         # replace the Alacritty app icon
 ```
 
+### Setup Options
+- `--dry-run`: Show planned actions without executing
+- `--with-gui`: Install GUI applications (Linux)
+- `--with-fonts`: Install all Nerd Fonts (Linux, can be slow)
+- `--verbose`: Enable verbose output
+
 ## How It Works
 
-This repository uses **GNU Stow** to manage dotfiles. Each directory inside `stow/` is a "stow package" whose internal structure mirrors where the files should live relative to `$HOME`. Stow creates symlinks from your home directory into this repo, so every config file is version-controlled in one place.
+This repository uses **GNU Stow** to manage dotfiles. Each directory inside `stow/` is a "stow package" whose internal structure mirrors where the files should live relative to `$HOME`. Stow creates symlinks from your home directory into this repo.
 
-The `--adopt` flag is used during setup, which means if you already have a config file at the target location, Stow moves it into the repo (adopting it) and creates the symlink. After running setup, a `git diff` will show any differences between your existing configs and the repo versions.
+The setup is **idempotent** and **safe**:
+- Existing files are backed up to `backup/` before any changes.
+- **JSON merging**: VS Code settings are merged instead of overwritten, preserving machine-specific keys like themes and AI configs.
+- **Smart detection**: Tools like SDKMAN! are skipped if `mise` is already managing JVM tools.
+- **Dry-run mode**: Preview all file operations and installations before they happen.
 
 ```
 stow/
@@ -63,11 +74,13 @@ stow/
 dotfiles/
 ├── main.sh                        # Single entrypoint for all commands
 ├── stow/                          # GNU Stow packages (symlinked to $HOME)
-│   ├── alacritty/                 # Alacritty terminal emulator config
+│   ├── alacritty/                 # Modular Alacritty terminal config
 │   │   └── .config/
-│   │       ├── alacritty/
-│   │       │   ├── alacritty.toml
-│   │       │   └── themes/        # 130+ color themes
+│   │       └── alacritty/
+│   │           ├── alacritty.toml # Main config (imports font/theme)
+│   │           ├── font.toml      # Font settings
+│   │           ├── theme.toml     # Theme selection
+│   │           └── themes/        # 130+ color themes
 │   │       ├── linearmouse/       # macOS mouse configuration
 │   │       └── git/               # Git ignore templates
 │   ├── git/                       # Git config and profiles

@@ -1,0 +1,18 @@
+# VSCode Settings Keys to Preserve
+workbench.colorTheme
+workbench.iconTheme
+editor.fontSize
+editor.fontFamily
+github.copilot.enable
+github.copilot.inlineSuggest.enable
+terminal.integrated.fontSize
+terminal.integrated.fontFamily
+window.zoomLevel
+files.autoSave
+editor.formatOnSave
+editor.tabSize
+workbench.startupEditor
+extensions.ignoreRecommendations
+telemetry.enableTelemetry
+telemetry.enableCrashReporter
+# Add more machine-specific settings here

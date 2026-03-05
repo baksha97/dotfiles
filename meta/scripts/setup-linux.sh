@@ -5,6 +5,15 @@ set -e
 
 profile="${1:-personal}"
 
+# DRY_RUN handling
+run_cmd() {
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "[DRY RUN] Would run: $*"
+  else
+    "$@"
+  fi
+}
+
 if [ ! -f "stow/git/profiles/$profile" ]; then
   echo "Error: profile '$profile' not found in stow/git/profiles/"
   exit 1
@@ -26,234 +35,308 @@ case "$ARCH" in
 esac
 
 # Show hidden files in GNOME Files if available
-command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences show-hidden-files true || true
+if [[ "$DRY_RUN" != "true" ]]; then
+  command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences show-hidden-files true || true
+fi
 
 # ── apt packages ────────────────────────────────────────────────────────────
-$SUDO apt-get update -qq
+run_cmd $SUDO apt-get update -qq
 mapfile -t pkgs < <(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$')
-$SUDO apt-get install -y "${pkgs[@]}"
+run_cmd $SUDO apt-get install -y "${pkgs[@]}"
 
 # ── gh CLI ──────────────────────────────────────────────────────────────────
 if ! command -v gh &>/dev/null; then
-  echo "Installing gh CLI..."
-  $SUDO mkdir -p -m 755 /etc/apt/keyrings
-  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-    | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-  $SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-    | $SUDO tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-  $SUDO apt-get update -qq
-  $SUDO apt-get install -y gh
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing gh CLI..."
+    run_cmd $SUDO mkdir -p -m 755 /etc/apt/keyrings
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | $SUDO tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+    $SUDO chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      | $SUDO tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  else
+    echo "[DRY RUN] Would install gh CLI"
+  fi
+  run_cmd $SUDO apt-get update -qq
+  run_cmd $SUDO apt-get install -y gh
 fi
 
 # ── lazygit ─────────────────────────────────────────────────────────────────
 if ! command -v lazygit &>/dev/null; then
-  echo "Installing lazygit..."
-  LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
-    | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*' | sed 's/v//')
-  [[ -n "$LG_VERSION" ]] || { echo "Error: could not determine lazygit version" >&2; exit 1; }
-  curl -fsSLo /tmp/lazygit.tar.gz \
-    "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/lazygit_${LG_VERSION}_Linux_${ARCH_MUSL}.tar.gz"
-  tar -xf /tmp/lazygit.tar.gz -C /tmp lazygit
-  $SUDO install /tmp/lazygit /usr/local/bin/lazygit
-  rm /tmp/lazygit /tmp/lazygit.tar.gz
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing lazygit..."
+    LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
+      | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*' | sed 's/v//')
+    [[ -n "$LG_VERSION" ]] || { echo "Error: could not determine lazygit version" >&2; exit 1; }
+    curl -fsSLo /tmp/lazygit.tar.gz \
+      "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/lazygit_${LG_VERSION}_Linux_${ARCH_MUSL}.tar.gz"
+    tar -xf /tmp/lazygit.tar.gz -C /tmp lazygit
+    $SUDO install /tmp/lazygit /usr/local/bin/lazygit
+    rm /tmp/lazygit /tmp/lazygit.tar.gz
+  else
+    echo "[DRY RUN] Would install lazygit"
+  fi
 fi
 
 # ── zoxide ──────────────────────────────────────────────────────────────────
 if ! command -v zoxide &>/dev/null; then
-  echo "Installing zoxide..."
-  curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing zoxide..."
+    curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+  else
+    echo "[DRY RUN] Would install zoxide"
+  fi
 fi
 
 # ── yq ──────────────────────────────────────────────────────────────────────
 if ! command -v yq &>/dev/null; then
-  echo "Installing yq..."
-  YQ_VERSION=$(curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest" \
-    | grep -o '"tag_name": "[^"]*"' | grep -o '"v[^"]*"' | tr -d '"')
-  [[ -n "$YQ_VERSION" ]] || { echo "Error: could not determine yq version" >&2; exit 1; }
-  $SUDO curl -fsSLo /usr/local/bin/yq \
-    "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH_GO}"
-  $SUDO chmod +x /usr/local/bin/yq
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing yq..."
+    YQ_VERSION=$(curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest" \
+      | grep -o '"tag_name": "[^"]*"' | grep -o '"v[^"]*"' | tr -d '"')
+    [[ -n "$YQ_VERSION" ]] || { echo "Error: could not determine yq version" >&2; exit 1; }
+    $SUDO curl -fsSLo /usr/local/bin/yq \
+      "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH_GO}"
+    $SUDO chmod +x /usr/local/bin/yq
+  else
+    echo "[DRY RUN] Would install yq"
+  fi
 fi
 
 # ── just ────────────────────────────────────────────────────────────────────
 if ! command -v just &>/dev/null; then
-  echo "Installing just..."
-  curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \
-    | $SUDO bash -s -- --to /usr/local/bin
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing just..."
+    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \
+      | $SUDO bash -s -- --to /usr/local/bin
+  else
+    echo "[DRY RUN] Would install just"
+  fi
 fi
 
 # ── uv ──────────────────────────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
-  echo "Installing uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  else
+    echo "[DRY RUN] Would install uv"
+  fi
 fi
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
-  echo "Installing Docker..."
-  curl -fsSL https://get.docker.com | sh
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+  else
+    echo "[DRY RUN] Would install Docker"
+  fi
 fi
 
 # ── Docker Compose plugin ────────────────────────────────────────────────────
 if ! docker compose version &>/dev/null 2>&1; then
-  echo "Installing Docker Compose plugin..."
-  DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"
-  mkdir -p "$DOCKER_CONFIG/cli-plugins"
-  DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" \
-    | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*')
-  [[ -n "$DC_VERSION" ]] || { echo "Error: could not determine docker compose version" >&2; exit 1; }
-  curl -fsSLo "$DOCKER_CONFIG/cli-plugins/docker-compose" \
-    "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-$(uname -m)"
-  chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing Docker Compose plugin..."
+    DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"
+    mkdir -p "$DOCKER_CONFIG/cli-plugins"
+    DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" \
+      | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*')
+    [[ -n "$DC_VERSION" ]] || { echo "Error: could not determine docker compose version" >&2; exit 1; }
+    curl -fsSLo "$DOCKER_CONFIG/cli-plugins/docker-compose" \
+      "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-$(uname -m)"
+    chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
+  else
+    echo "[DRY RUN] Would install Docker Compose plugin"
+  fi
 fi
 
 # ── Tailscale ───────────────────────────────────────────────────────────────
 if ! command -v tailscale &>/dev/null; then
-  echo "Installing Tailscale..."
-  curl -fsSL https://tailscale.com/install.sh | sh
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing Tailscale..."
+    curl -fsSL https://tailscale.com/install.sh | sh
+  else
+    echo "[DRY RUN] Would install Tailscale"
+  fi
 fi
 
 # ── Node.js (LTS) ────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
-  echo "Installing Node.js LTS..."
-  curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO bash -
-  $SUDO apt-get install -y nodejs
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing Node.js LTS..."
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO bash -
+    $SUDO apt-get install -y nodejs
+  else
+    echo "[DRY RUN] Would install Node.js LTS"
+  fi
 fi
 
 # ── vercel ───────────────────────────────────────────────────────────────────
 if ! command -v vercel &>/dev/null; then
-  echo "Installing vercel..."
-  $SUDO npm install -g vercel
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing vercel..."
+  else
+    echo "[DRY RUN] Would install vercel"
+  fi
+  run_cmd $SUDO npm install -g vercel
 fi
 
 # ── typos ────────────────────────────────────────────────────────────────────
 if ! command -v typos &>/dev/null; then
-  echo "Installing typos..."
-  curl -fsSL "https://github.com/crate-ci/typos/releases/latest/download/typos-${ARCH_MUSL}-unknown-linux-musl.tar.gz" \
-    | tar -xz -C /tmp ./typos
-  $SUDO install /tmp/typos /usr/local/bin/typos
-  rm /tmp/typos
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing typos..."
+    curl -fsSL "https://github.com/crate-ci/typos/releases/latest/download/typos-${ARCH_MUSL}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /tmp ./typos
+    $SUDO install /tmp/typos /usr/local/bin/typos
+    rm /tmp/typos
+  else
+    echo "[DRY RUN] Would install typos"
+  fi
 fi
 
 # ── opencode ─────────────────────────────────────────────────────────────────
 if ! command -v opencode &>/dev/null; then
-  echo "Installing opencode..."
-  curl -fsSL https://opencode.ai/install | sh
+  if [[ "$DRY_RUN" != "true" ]]; then
+    echo "Installing opencode..."
+    curl -fsSL https://opencode.ai/install | sh
+  else
+    echo "[DRY RUN] Would install opencode"
+  fi
 fi
 
 # ── Nerd Fonts ──────────────────────────────────────────────────────────────
-nerd_fonts_version="v3.3.0"
-nerd_fonts=(
-  DroidSansMono
-  FiraCode
-  JetBrainsMono
-  Meslo
-  Mononoki
-  RobotoMono
-  SourceCodePro
-  NerdFontsSymbolsOnly
-)
-font_dir="$HOME/.local/share/fonts"
-mkdir -p "$font_dir"
-echo "Installing Nerd Fonts..."
-fonts_changed=false
-for font in "${nerd_fonts[@]}"; do
-  marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
-  if [[ -f "$marker" ]]; then
-    echo "  Skipped $font (already installed)"
-    continue
+if [[ "$WITH_FONTS" == "true" ]]; then
+  nerd_fonts_version="v3.3.0"
+  nerd_fonts=(
+    DroidSansMono
+    FiraCode
+    JetBrainsMono
+    Meslo
+    Mononoki
+    RobotoMono
+    SourceCodePro
+    NerdFontsSymbolsOnly
+  )
+  font_dir="$HOME/.local/share/fonts"
+  run_cmd mkdir -p "$font_dir"
+  echo "Installing Nerd Fonts..."
+  fonts_changed=false
+  for font in "${nerd_fonts[@]}"; do
+    marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
+    if [[ -f "$marker" ]]; then
+      echo "  Skipped $font (already installed)"
+      continue
+    fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+      echo "[DRY RUN] Would install font: $font"
+      continue
+    fi
+    curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_fonts_version}/${font}.tar.xz" \
+      | tar -xJ -C "$font_dir"
+    touch "$marker"
+    echo "  Installed $font"
+    fonts_changed=true
+  done
+  if [[ "$fonts_changed" == true ]]; then
+    fc-cache -f "$font_dir"
+    echo "  Font cache updated"
   fi
-  curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_fonts_version}/${font}.tar.xz" \
-    | tar -xJ -C "$font_dir"
-  touch "$marker"
-  echo "  Installed $font"
-  fonts_changed=true
-done
-if [[ "$fonts_changed" == true ]]; then
-  fc-cache -f "$font_dir"
-  echo "  Font cache updated"
+else
+  echo "Skipping Nerd Fonts installation (use --with-fonts to install)."
 fi
 
 # ── Headful (GUI desktop) apps ───────────────────────────────────────────────
-if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" || -n "${XDG_CURRENT_DESKTOP:-}" ]]; then
-  echo "Headful environment detected — installing GUI apps..."
+if [[ "$WITH_GUI" == "true" ]]; then
+  echo "Installing GUI apps..."
 
   # VS Code
   if ! command -v code &>/dev/null; then
     echo "  Installing VS Code..."
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-      | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-      | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
-    $SUDO apt-get update -qq
-    $SUDO apt-get install -y code
+    if [[ "$DRY_RUN" != "true" ]]; then
+      curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+        | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
+    fi
+    run_cmd $SUDO apt-get update -qq
+    run_cmd $SUDO apt-get install -y code
   fi
 
   # VS Code Insiders
   if ! command -v code-insiders &>/dev/null; then
     echo "  Installing VS Code Insiders..."
     # Key already added above if VS Code was just installed; ensure it exists
-    if [[ ! -f /etc/apt/keyrings/microsoft.gpg ]]; then
+    if [[ ! -f /etc/apt/keyrings/microsoft.gpg ]] && [[ "$DRY_RUN" != "true" ]]; then
       curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
         | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
-      $SUDO apt-get update -qq
+      run_cmd $SUDO apt-get update -qq
     fi
-    $SUDO apt-get install -y code-insiders
+    run_cmd $SUDO apt-get install -y code-insiders
   fi
 
   # Google Chrome (amd64 only)
   if [[ "$ARCH_GO" == "amd64" ]] && ! command -v google-chrome-stable &>/dev/null; then
     echo "  Installing Google Chrome..."
-    curl -fsSLo /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    $SUDO apt-get install -y /tmp/google-chrome.deb
-    rm /tmp/google-chrome.deb
+    if [[ "$DRY_RUN" != "true" ]]; then
+      curl -fsSLo /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    fi
+    run_cmd $SUDO apt-get install -y /tmp/google-chrome.deb
+    run_cmd rm /tmp/google-chrome.deb
   fi
 
   # Firefox
   if ! command -v firefox &>/dev/null; then
     echo "  Installing Firefox..."
-    $SUDO apt-get install -y firefox
+    run_cmd $SUDO apt-get install -y firefox
   fi
 
   # VLC
   if ! command -v vlc &>/dev/null; then
     echo "  Installing VLC..."
-    $SUDO apt-get install -y vlc
+    run_cmd $SUDO apt-get install -y vlc
   fi
 
   # Alacritty
   if ! command -v alacritty &>/dev/null; then
     echo "  Installing Alacritty..."
-    $SUDO add-apt-repository -y ppa:aslatter/ppa
-    $SUDO apt-get update -qq
-    $SUDO apt-get install -y alacritty
+    run_cmd $SUDO add-apt-repository -y ppa:aslatter/ppa
+    run_cmd $SUDO apt-get update -qq
+    run_cmd $SUDO apt-get install -y alacritty
   fi
 
   # Android Studio
   if [[ ! -d /opt/android-studio ]]; then
     echo "  Installing Android Studio..."
-    AS_URL=$(curl -s "https://jb.gg/ide/index.xml" \
-      | grep -oP 'https://[^"]+android-studio[^"]+linux\.tar\.gz' | head -1)
-    if [[ -n "$AS_URL" ]]; then
-      curl -fsSLo /tmp/android-studio.tar.gz "$AS_URL"
-      $SUDO tar -xf /tmp/android-studio.tar.gz -C /opt
-      rm /tmp/android-studio.tar.gz
-    else
-      echo "  Warning: Could not determine Android Studio download URL, skipping."
+    if [[ "$DRY_RUN" != "true" ]]; then
+      AS_URL=$(curl -s "https://jb.gg/ide/index.xml" \
+        | grep -oP 'https://[^"]+android-studio[^"]+linux\.tar\.gz' | head -1)
+      if [[ -n "$AS_URL" ]]; then
+        curl -fsSLo /tmp/android-studio.tar.gz "$AS_URL"
+        $SUDO tar -xf /tmp/android-studio.tar.gz -C /opt
+        rm /tmp/android-studio.tar.gz
+      else
+        echo "  Warning: Could not determine Android Studio download URL, skipping."
+      fi
     fi
   fi
+else
+  echo "Skipping GUI apps installation (use --with-gui to install)."
 fi
 
 source "$DOTFILES_DIR/meta/scripts/setup-common.sh"
 
 # ── SDKMAN packages ───────────────────────────────────────────────────────────
 if [[ -f "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
-  set +e
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
-  set -e
-  command -v gradle  &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install gradle  < /dev/null || true
-  command -v kotlinc &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install kotlin  < /dev/null || true
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "[DRY RUN] Would install gradle and kotlin via SDKMAN!"
+  else
+    set +e
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    set -e
+    command -v gradle  &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install gradle  < /dev/null || true
+    command -v kotlinc &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install kotlin  < /dev/null || true
+  fi
 fi

@@ -149,7 +149,7 @@ if ! command -v gemini &>/dev/null; then
 fi
 
 # ── opencode ─────────────────────────────────────────────────────────────────
-if ! command -v opencode &>/dev/null; then
+if ! command -v opencode &>/dev/null && [ ! -f "$HOME/.opencode/bin/opencode" ]; then
   echo "Installing opencode..."
   curl -fsSL https://opencode.ai/install | bash
 fi

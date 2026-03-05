@@ -30,7 +30,7 @@ command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences
 
 # ── apt packages ────────────────────────────────────────────────────────────
 $SUDO apt-get update -qq
-pkgs=(${(f)"$(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$')"})
+mapfile -t pkgs < <(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$')
 $SUDO apt-get install -y "${pkgs[@]}"
 
 # ── gh CLI ──────────────────────────────────────────────────────────────────

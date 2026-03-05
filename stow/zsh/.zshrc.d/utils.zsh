@@ -7,22 +7,31 @@ gct() {
   [[ -n "$1" ]] || { echo "Usage: gct <branch-name>" >&2; return 1; }
   local branch="$1"
 
-  local common_dir=$(git rev-parse --git-common-dir)
-  [[ "$common_dir" = /* ]] || common_dir="$(git rev-parse --show-toplevel)/$common_dir"
-  local repo_root=$(dirname "$common_dir")
-  local repo_name=$(basename "$repo_root")
+  local toplevel=$(git rev-parse --show-toplevel)
+  local repo_name=$(basename -s .git "$(git remote get-url origin)")
 
   local safe_branch="${branch//\//-}"
-  local worktree_path="$(dirname "$repo_root")/${repo_name}-${safe_branch}"
+  local worktree_path="$(dirname "$toplevel")/${repo_name}-${safe_branch}"
 
   if git fetch origin "$branch" 2>/dev/null; then
-    git worktree add --track -b "$branch" "$worktree_path" "origin/$branch" && \
-    cd "$worktree_path"
+    if git show-ref --verify --quiet "refs/heads/$branch"; then
+      git worktree add "$worktree_path" "$branch" && \
+      cd "$worktree_path"
+    else
+      git worktree add --track -b "$branch" "$worktree_path" "origin/$branch" && \
+      cd "$worktree_path"
+    fi
   else
     git fetch origin main && \
-    git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
-    cd "$worktree_path" && \
-    git push -u origin HEAD
+    if git show-ref --verify --quiet "refs/heads/$branch"; then
+      git worktree add "$worktree_path" "$branch" && \
+      cd "$worktree_path" && \
+      git push -u origin HEAD
+    else
+      git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
+      cd "$worktree_path" && \
+      git push -u origin HEAD
+    fi
   fi
 }
 
@@ -34,14 +43,12 @@ grmt() {
   local target="${1:-$(git rev-parse --show-toplevel)}"
   target="${target:A}"  # resolve to absolute/canonical path
 
-  local common_dir=$(git -C "$target" rev-parse --git-common-dir)
-  [[ "$common_dir" = /* ]] || common_dir="${target}/$common_dir"
-  local repo_root=$(dirname "$common_dir")
+  local main_worktree=$(git -C "$target" worktree list --porcelain | head -1 | sed 's/^worktree //')
 
-  if [[ "${target:A}" = "${repo_root:A}" ]]; then
+  if [[ "${target}" = "${main_worktree}" ]]; then
     echo "grmt: '$target' is the main repo checkout, not a worktree" >&2
     return 1
   fi
 
-  cd "$repo_root" && git worktree remove "$target"
+  cd "$main_worktree" && git worktree remove "$target"
 }

@@ -11,6 +11,23 @@ log() { echo -e "${BLUE}[install]${NC} $1"; }
 error() { echo -e "${RED}[error]${NC} $1"; exit 1; }
 success() { echo -e "${GREEN}[success]${NC} $1"; }
 
+usage_install() {
+    cat <<EOF
+Usage: ./main.sh install <command> [sub-target]
+
+Commands:
+  all                Run all merge operations (skills, zsh, fonts, git)
+  skills [name]      Merge Agent Skills into discovery paths. Fuzzy matches name.
+  zsh [util]         Install Zsh utilities (all or specific file) and update .zshrc
+  fonts              Download and install Nerd Fonts (JetBrainsMono, FiraCode, Meslo)
+  git                Install Git profiles to ~/profiles/
+
+Examples:
+  ./main.sh install skills coroutines
+  ./main.sh install zsh utils
+EOF
+}
+
 install_skills() {
     local sub_target="$1"
     local skills_src="$DOTFILES_DIR/meta/.ai-agent/skills"
@@ -32,7 +49,7 @@ install_skills() {
             matched_dir="$sub_target"
         else
             # Try fuzzy matching (e.g. "android-emu" -> "android-emulator-skill")
-            matched_dir=$(ls "$skills_src" | grep "$sub_target" | head -n 1 || true)
+            matched_dir=$(ls "$skills_src" | grep -i "$sub_target" | head -n 1 || true)
         fi
 
         if [ -z "$matched_dir" ] || [ ! -d "$skills_src/$matched_dir" ]; then
@@ -191,7 +208,7 @@ case "$sub_command" in
         ;;
     *)
         echo "Unknown install subcommand: $sub_command"
-        usage
+        usage_install
         exit 1
         ;;
 esac

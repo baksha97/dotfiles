@@ -12,7 +12,7 @@ fi
 
 # Show hidden files in file manager
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  gsettings set org.gnome.nautilus.preferences show-hidden-files true
+  command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences show-hidden-files true || true
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   defaults write com.apple.finder AppleShowAllFiles YES
 fi
@@ -23,8 +23,19 @@ if ! command -v brew &> /dev/null; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
+# Add Homebrew to PATH for the current session on Linux (installer doesn't do this automatically)
+if [[ "$OSTYPE" == "linux-gnu"* ]] && [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
 # Install packages for the selected profile
-brew bundle --file="meta/homebrew/Brewfile.$profile"
+brew update
+brew bundle --verbose --file="meta/homebrew/Brewfile.$profile"
+
+# Install Tailscale on Linux via the official install script (Homebrew formula requires systemd)
+if [[ "$OSTYPE" == "linux-gnu"* ]] && ! command -v tailscale &>/dev/null; then
+  curl -fsSL https://tailscale.com/install.sh | sh
+fi
 
 # Install Nerd Fonts on Linux (macOS handles this via Brewfile casks)
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

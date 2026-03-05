@@ -44,7 +44,13 @@ case "$command" in
         echo "Unsupported Linux distribution (no apt-get or apk found)"; exit 1
       fi
     else
-      echo "Unsupported OS: $OSTYPE"; exit 1
+      if command -v apt-get &>/dev/null; then
+        source "$DOTFILES_DIR/meta/scripts/setup-linux.sh" "$@"
+      elif command -v apk &>/dev/null; then
+        source "$DOTFILES_DIR/meta/scripts/setup-alpine.sh" "$@"
+      else
+        echo "Unsupported OS: $OSTYPE"; exit 1
+      fi
     fi
     ;;
   brew)

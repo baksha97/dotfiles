@@ -4,6 +4,7 @@
 # Otherwise, creates a new branch from origin/main, pushes it, and cd's into the worktree.
 # Safe to run from any worktree or the main repo checkout.
 gct() {
+  [[ -n "$1" ]] || { echo "Usage: gct <branch-name>" >&2; return 1; }
   local branch="$1"
 
   local common_dir=$(git rev-parse --git-common-dir)

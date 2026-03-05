@@ -1,5 +1,3 @@
-<img width="1297" alt="image" src="https://github.com/baksha97/dotfiles/assets/15055008/39871f8c-fd15-46df-a5c9-f7dcc3bd9e35">
-
 # Dotfiles
 
 Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS (or Linux) machine with shell, editor, terminal, git, and AI agent skill configurations.
@@ -55,6 +53,7 @@ stow/
 │   └── .gitignore          →  ~/.gitignore
 ├── alacritty/
 │   └── .config/alacritty/  →  ~/.config/alacritty/
+│   └── .config/linearmouse/ →  ~/.config/linearmouse/ (macOS mouse config)
 └── ...
 ```
 
@@ -65,23 +64,26 @@ dotfiles/
 ├── main.sh                        # Single entrypoint for all commands
 ├── stow/                          # GNU Stow packages (symlinked to $HOME)
 │   ├── alacritty/                 # Alacritty terminal emulator config
-│   │   └── .config/alacritty/
-│   │       ├── alacritty.toml
-│   │       └── themes/            # 130+ color themes
+│   │   └── .config/
+│   │       ├── alacritty/
+│   │       │   ├── alacritty.toml
+│   │       │   └── themes/        # 130+ color themes
+│   │       ├── linearmouse/       # macOS mouse configuration
+│   │       └── git/               # Git ignore templates
 │   ├── git/                       # Git config and profiles
 │   │   ├── .gitconfig
 │   │   ├── .gitignore             # Global gitignore
 │   │   └── profiles/
 │   │       ├── personal           # Name + email for personal projects
-│   │       └── work               # Name + email for work projects
+│   │       ├── work               # Name + email for work projects
+│   │       └── headless           # Name + email for headless/CI environments
 │   ├── powerlevel10k/             # Powerlevel10k prompt theme
 │   │   └── .p10k.zsh
 │   ├── tmux/                      # tmux terminal multiplexer config
 │   │   └── .tmux.conf
 │   ├── vscode/                    # VS Code / Cursor editor settings
 │   │   ├── settings.json
-│   │   ├── keybindings.json
-│   │   └── .vscode/extensions/
+│   │   └── keybindings.json
 │   └── zsh/                       # Zsh shell config
 │       └── .zshrc
 └── meta/                          # Support files (not stowed)
@@ -92,11 +94,15 @@ dotfiles/
     │       ├── android-gradle-logic/
     │       ├── gradle-build-performance/
     │       └── kotlin-concurrency-expert/
-    ├── homebrew/                   # Homebrew package management
+    ├── homebrew/                   # Homebrew package management (macOS only)
     │   ├── Brewfile.personal       # Packages for the personal profile
     │   └── Brewfile.work           # Packages for the work profile
+    ├── packages/                   # Linux package lists
+    │   └── linux.packages          # apt packages for Linux setup
     ├── scripts/                    # Implementation scripts
-    │   ├── setup.sh                # System bootstrap
+    │   ├── setup-macos.sh          # macOS bootstrap (Homebrew)
+    │   ├── setup-linux.sh          # Linux bootstrap (apt + scripts)
+    │   ├── setup-common.sh         # Shared stow/git/skills setup
     │   ├── backup.sh               # Brewfile dump
     │   └── alacritty-icon.sh       # Icon replacement
     └── terminal/                   # macOS Terminal.app profiles
@@ -109,12 +115,12 @@ All stow packages live under `stow/`. The table below shows where each package's
 
 | Package | Contents | Symlink Target |
 |---------|----------|----------------|
-| `zsh` | `.zshrc` | `$HOME` |
+| `zsh` | `.zshrc`, `.zshrc.d/` | `$HOME` |
 | `powerlevel10k` | `.p10k.zsh` | `$HOME` |
 | `tmux` | `.tmux.conf` | `$HOME` |
-| `alacritty` | `.config/alacritty/` | `$HOME` |
+| `alacritty` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` | `$HOME` |
 | `git` | `.gitconfig`, `.gitignore` | `$HOME` |
-| `vscode` | `settings.json`, `keybindings.json`, extensions | Platform-specific VS Code `User/` directory |
+| `vscode` | `settings.json`, `keybindings.json` | Platform-specific VS Code `User/` directory |
 
 VS Code target paths:
 - **macOS**: `~/Library/Application Support/Code/User`
@@ -126,14 +132,16 @@ The `setup` command performs these steps in order:
 
 1. **Validate profile** — ensures the selected profile exists in `stow/git/profiles/`
 2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
-3. **Install Homebrew** if not present
-4. **Install Brewfile packages** — installs from `meta/homebrew/Brewfile.<profile>`
-5. **Install SDKMAN!** for JVM SDK management
-6. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
-7. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
-8. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
+3. **Platform-specific package installation:**
+   - **macOS**: Install Homebrew (if missing), then install from `meta/homebrew/Brewfile.<profile>`
+   - **Linux**: Install apt packages from `meta/packages/linux.packages`, then install tools via official scripts
+4. **Install SDKMAN!** for JVM SDK management
+5. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
+6. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
+7. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
+8. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
 
-### Brewfile Highlights
+### macOS Brewfile Highlights
 
 | Category | Packages |
 |----------|----------|
@@ -143,13 +151,37 @@ The `setup` command performs these steps in order:
 | **Apps** | Alacritty, VS Code, Google Chrome, Rectangle, Spotify, Multipass |
 | **VS Code extensions** | Copilot, Vim, Docker, Python, TOML, GitHub Actions |
 
+### Linux Installation Details
+
+On Linux, the setup installs:
+
+**apt packages** (`meta/packages/linux.packages`):
+- Core: `git`, `git-lfs`, `curl`, `zsh`, `tmux`, `stow`, `fzf`, `jq`
+- Media: `ffmpeg`, `scrcpy`
+- Tools: `rclone`, `aria2`, `ansible`, `exiftool`
+- Utilities: `fontconfig`, `unzip`, `zip`, `ca-certificates`
+
+**Official install scripts** (all architectures):
+- `gh` CLI, `lazygit`, `zoxide`, `yq`, `just`, `uv`, `docker`, `docker-compose`
+- `tailscale`, `nodejs`, `vercel`, `typos`, `opencode`
+- **Nerd Fonts**: DroidSansMono, FiraCode, JetBrainsMono, Meslo, Mononoki, RobotoMono, SourceCodePro, SymbolsOnly
+
+**GUI apps** (headful environments only - when `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_CURRENT_DESKTOP` is set):
+- VS Code, VS Code Insiders, Google Chrome (amd64 only), Firefox, VLC, Alacritty, Android Studio
+
 ## Profiles
 
-Profiles are the central mechanism for switching between environments (e.g., personal vs work). The selected profile affects both **git identity** and **Homebrew packages**. The default profile is `personal`.
+Profiles are the central mechanism for switching between environments (e.g., personal vs work). The selected profile affects **git identity** on both platforms, and **Homebrew packages** on macOS only. Linux uses the same `meta/packages/linux.packages` regardless of profile. The default profile is `personal`.
+
+Available profiles:
+- `personal` — Personal projects identity
+- `work` — Work projects identity  
+- `headless` — CI/automation identity
 
 ```bash
 ./main.sh setup          # uses "personal"
 ./main.sh setup work     # uses "work"
+./main.sh setup headless # uses "headless"
 ```
 
 ### Git Identity
@@ -163,7 +195,7 @@ Each profile has a corresponding file in `stow/git/profiles/` containing `[user]
 
 The `.gitconfig-profile` file is gitignored so your active identity stays local.
 
-### Homebrew Packages
+### Homebrew Packages (macOS only)
 
 Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
 
@@ -175,7 +207,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 ### Adding a New Profile
 
 1. Create `stow/git/profiles/<name>` with `[user]` name and email fields
-2. Create `meta/homebrew/Brewfile.<name>` with the desired packages
+2. **macOS only**: Create `meta/homebrew/Brewfile.<name>` with the desired packages
 3. Run `./main.sh setup <name>`
 
 ## Agent Skills
@@ -268,6 +300,12 @@ Alacritty is configured with **JetBrains Mono Nerd Font** at size 16, block curs
 
 URL hints are enabled with `Ctrl+Shift+U` for clickable links.
 
+### Additional Configs in Alacritty Package
+
+The alacritty stow package also includes:
+- **LinearMouse** config (`.config/linearmouse/linearmouse.json`) — macOS mouse customization
+- **Git ignore templates** (`.config/git/ignore`) — global git ignore patterns
+
 ## VS Code / Cursor Configuration
 
 ### Editor Settings
@@ -339,7 +377,7 @@ To add a new tool's config to this repo:
 
 1. Create a new directory under `stow/` named after the tool (e.g., `stow/neovim/`)
 2. Mirror the directory structure relative to `$HOME` inside it (e.g., `stow/neovim/.config/nvim/init.lua`)
-3. Add a `stow` command to `meta/scripts/setup.sh`:
+3. Add a `stow` command to `meta/scripts/setup-common.sh`:
 
 ```bash
 stow -d stow neovim -t "$HOME" --adopt

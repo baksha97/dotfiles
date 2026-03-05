@@ -71,6 +71,19 @@ if ! command -v zoxide &>/dev/null; then
   curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
 fi
 
+# ── fzf ─────────────────────────────────────────────────────────────────────
+if ! command -v fzf &>/dev/null || fzf --version | grep -q "(debian)"; then
+  echo "Installing latest fzf..."
+  FZF_VERSION=$(curl -s "https://api.github.com/repos/junegunn/fzf/releases/latest" \
+    | grep -o '"tag_name": "[^"]*"' | head -1 | tr -d '"' | sed 's/v//')
+  [[ -n "$FZF_VERSION" ]] || { echo "Error: could not determine fzf version" >&2; exit 1; }
+  curl -fsSLo /tmp/fzf.tar.gz \
+    "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${ARCH_GO}.tar.gz"
+  tar -xf /tmp/fzf.tar.gz -C /tmp fzf
+  $SUDO install /tmp/fzf /usr/local/bin/fzf
+  rm /tmp/fzf /tmp/fzf.tar.gz
+fi
+
 # ── yq ──────────────────────────────────────────────────────────────────────
 if ! command -v yq &>/dev/null; then
   echo "Installing yq..."
@@ -250,7 +263,8 @@ if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" || -n "${XDG_CURRENT_DESKTO
   fi
 fi
 
-source "$DOTFILES_DIR/meta/scripts/setup-common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/setup-common.sh"
 
 # ── SDKMAN packages ───────────────────────────────────────────────────────────
 if [[ -f "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then

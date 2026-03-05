@@ -30,4 +30,5 @@ fi
 brew update
 brew bundle --verbose --file="meta/homebrew/Brewfile.$profile"
 
-source "$DOTFILES_DIR/meta/scripts/setup-common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/setup-common.sh"

@@ -26,6 +26,41 @@ fi
 # Install packages for the selected profile
 brew bundle --file="meta/homebrew/Brewfile.$profile"
 
+# Install Nerd Fonts on Linux (macOS handles this via Brewfile casks)
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  nerd_fonts_version="v3.3.0"
+  nerd_fonts=(
+    DroidSansMono
+    FiraCode
+    JetBrainsMono
+    Meslo
+    Mononoki
+    RobotoMono
+    SourceCodePro
+    NerdFontsSymbolsOnly
+  )
+  font_dir="$HOME/.local/share/fonts"
+  mkdir -p "$font_dir"
+  echo "Installing Nerd Fonts..."
+  fonts_changed=false
+  for font in "${nerd_fonts[@]}"; do
+    marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
+    if [[ -f "$marker" ]]; then
+      echo "  Skipped $font (already installed)"
+      continue
+    fi
+    curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_fonts_version}/${font}.tar.xz" \
+      | tar -xJ -C "$font_dir"
+    touch "$marker"
+    echo "  Installed $font"
+    fonts_changed=true
+  done
+  if [[ "$fonts_changed" == true ]]; then
+    fc-cache -f "$font_dir"
+    echo "  Font cache updated"
+  fi
+fi
+
 # Install SDKMAN! if not installed
 if [ ! -d "$HOME/.sdkman" ]; then
   curl -s "https://get.sdkman.io" | bash

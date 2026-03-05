@@ -1,7 +1,7 @@
 name: Run Script on macOS
-
 on:
   workflow_dispatch:
+
 jobs:
   run-script:
     runs-on: macos-latest
@@ -10,4 +10,4 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup
         run: |
-          ./setup.sh
+          ./main.sh setup

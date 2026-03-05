@@ -55,8 +55,7 @@ fi
 # ── lazygit ─────────────────────────────────────────────────────────────────
 if ! command -v lazygit &>/dev/null; then
   echo "Installing lazygit..."
-  LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
-    | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*' | sed 's/v//')
+  LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r .tag_name | sed 's/v//')
   [[ -n "$LG_VERSION" ]] || { echo "Error: could not determine lazygit version" >&2; exit 1; }
   curl -fsSLo /tmp/lazygit.tar.gz \
     "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/lazygit_${LG_VERSION}_Linux_${ARCH_MUSL}.tar.gz"
@@ -74,8 +73,7 @@ fi
 # ── fzf ─────────────────────────────────────────────────────────────────────
 if ! command -v fzf &>/dev/null || fzf --version | grep -q "(debian)"; then
   echo "Installing latest fzf..."
-  FZF_VERSION=$(curl -s "https://api.github.com/repos/junegunn/fzf/releases/latest" \
-    | grep -o '"tag_name": "[^"]*"' | head -1 | tr -d '"' | sed 's/v//')
+  FZF_VERSION=$(curl -s "https://api.github.com/repos/junegunn/fzf/releases/latest" | jq -r .tag_name | sed 's/v//')
   [[ -n "$FZF_VERSION" ]] || { echo "Error: could not determine fzf version" >&2; exit 1; }
   curl -fsSLo /tmp/fzf.tar.gz \
     "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${ARCH_GO}.tar.gz"
@@ -87,8 +85,7 @@ fi
 # ── yq ──────────────────────────────────────────────────────────────────────
 if ! command -v yq &>/dev/null; then
   echo "Installing yq..."
-  YQ_VERSION=$(curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest" \
-    | grep -o '"tag_name": "[^"]*"' | grep -o '"v[^"]*"' | tr -d '"')
+  YQ_VERSION=$(curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest" | jq -r .tag_name)
   [[ -n "$YQ_VERSION" ]] || { echo "Error: could not determine yq version" >&2; exit 1; }
   $SUDO curl -fsSLo /usr/local/bin/yq \
     "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH_GO}"
@@ -119,8 +116,7 @@ if ! docker compose version &>/dev/null 2>&1; then
   echo "Installing Docker Compose plugin..."
   DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"
   mkdir -p "$DOCKER_CONFIG/cli-plugins"
-  DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" \
-    | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*')
+  DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" | jq -r .tag_name)
   [[ -n "$DC_VERSION" ]] || { echo "Error: could not determine docker compose version" >&2; exit 1; }
   curl -fsSLo "$DOCKER_CONFIG/cli-plugins/docker-compose" \
     "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-$(uname -m)"

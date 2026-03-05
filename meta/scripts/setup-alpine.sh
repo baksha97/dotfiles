@@ -27,7 +27,7 @@ case "$ARCH" in
 esac
 
 # ── Ensure Alpine community repo is enabled ───────────────────────────────────
-ALPINE_VERSION=$(. /etc/os-release 2>/dev/null && echo "$VERSION_ID" | grep -oP '^\d+\.\d+' || echo "edge")
+ALPINE_VERSION=$(. /etc/os-release 2>/dev/null && echo "$VERSION_ID" | grep -oE '^\d+\.\d+' || echo "edge")
 COMMUNITY_REPO="https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VERSION}/community"
 # Fall back to edge if version parsing failed
 [[ "$ALPINE_VERSION" == "edge" ]] && COMMUNITY_REPO="https://dl-cdn.alpinelinux.org/alpine/edge/community"
@@ -58,6 +58,12 @@ $SUDO apk add --no-cache \
 
 # ansible is in Alpine's community repo — skip silently if unavailable
 $SUDO apk add --no-cache ansible 2>/dev/null || echo "  Skipped ansible (not available)"
+
+# ── Change default shell to zsh ──────────────────────────────────────────────
+if [[ "$SHELL" != *"/zsh" ]]; then
+  echo "Changing default shell to zsh..."
+  $SUDO chsh -s "$(which zsh)" "$USER"
+fi
 
 # scrcpy is desktop-only — skip on phone
 echo "  Skipped scrcpy (not applicable on phone)"

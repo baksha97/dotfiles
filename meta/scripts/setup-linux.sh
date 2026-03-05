@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 # setup-linux.sh — Linux bootstrap using apt and official install scripts.
 
 set -e
@@ -32,6 +32,12 @@ command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences
 $SUDO apt-get update -qq
 mapfile -t pkgs < <(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$')
 $SUDO apt-get install -y "${pkgs[@]}"
+
+# ── Change default shell to zsh ──────────────────────────────────────────────
+if [[ "$SHELL" != *"/zsh" ]]; then
+  echo "Changing default shell to zsh..."
+  $SUDO chsh -s "$(which zsh)" "$USER"
+fi
 
 # ── gh CLI ──────────────────────────────────────────────────────────────────
 if ! command -v gh &>/dev/null; then

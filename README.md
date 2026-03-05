@@ -75,8 +75,7 @@ dotfiles/
 │   │   ├── .gitignore             # Global gitignore
 │   │   └── profiles/
 │   │       ├── personal           # Name + email for personal projects
-│   │       ├── work               # Name + email for work projects
-│   │       └── headless           # Name + email for headless/CI environments
+│   │       └── work               # Name + email for work projects
 │   ├── powerlevel10k/             # Powerlevel10k prompt theme
 │   │   └── .p10k.zsh
 │   ├── tmux/                      # tmux terminal multiplexer config
@@ -172,29 +171,16 @@ On Linux, the setup installs:
 
 ## Profiles
 
-Profiles are the central mechanism for switching between environments (e.g., personal vs work). The selected profile affects **git identity** on both platforms, and **Homebrew packages** on macOS only. Linux uses the same `meta/packages/linux.packages` regardless of profile. The default profile is `personal`.
+Profiles control which Homebrew packages are installed on macOS. The selected profile determines which Brewfile is used during setup. Linux uses the same `meta/packages/linux.packages` regardless of profile. The default profile is `personal`.
 
 Available profiles:
-- `personal` — Personal projects identity
-- `work` — Work projects identity  
-- `headless` — CI/automation identity
+- `personal` — Full macOS setup with GUI apps
+- `work` — Work environment setup
 
 ```bash
 ./main.sh setup          # uses "personal"
 ./main.sh setup work     # uses "work"
-./main.sh setup headless # uses "headless"
 ```
-
-### Git Identity
-
-Each profile has a corresponding file in `stow/git/profiles/` containing `[user]` name and email fields. During setup, the selected profile is copied to `stow/git/.gitconfig-profile`, which is included by `.gitconfig` via:
-
-```ini
-[include]
-    path = ~/.gitconfig-profile
-```
-
-The `.gitconfig-profile` file is gitignored so your active identity stays local.
 
 ### Homebrew Packages (macOS only)
 

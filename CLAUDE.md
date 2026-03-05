@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GNU Stow** is the core mechanism. Each directory under `stow/` mirrors `$HOME` and gets symlinked there via `stow -d stow <pkg> -t "$HOME" --adopt`. The `--adopt` flag moves pre-existing files into the repo and creates symlinks in place.
 
-**Profiles** (`personal` / `work` / `headless`) control two things:
+**Profiles** (`personal` / `work`) control two things:
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
 3. **Linux**: Uses `meta/packages/linux.packages` (apt) plus tool-specific install scripts regardless of profile
@@ -75,7 +75,7 @@ The Linux setup (`setup-linux.sh`) installs packages in this order:
 - `backup/` holds timestamped snapshots of pre-existing config files that `setup.sh` would overwrite — never edit these
 - `stow/git/.gitconfig-profile` is gitignored (per-machine identity)
 - Device-specific configs inside `stow/alacritty/.config/` (anything other than `alacritty/`) are gitignored
-- Profiles available: `personal`, `work`, `headless`
+- Profiles available: `personal`, `work`
 
 ## Adding a New Stow Package
 

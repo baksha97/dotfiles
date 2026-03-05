@@ -30,7 +30,8 @@ command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences
 
 # ── apt packages ────────────────────────────────────────────────────────────
 $SUDO apt-get update -qq
-$SUDO apt-get install -y $(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$' | xargs)
+pkgs=(${(f)"$(grep -v '^\s*#' meta/packages/linux.packages | grep -v '^\s*$')"})
+$SUDO apt-get install -y "${pkgs[@]}"
 
 # ── gh CLI ──────────────────────────────────────────────────────────────────
 if ! command -v gh &>/dev/null; then
@@ -50,6 +51,7 @@ if ! command -v lazygit &>/dev/null; then
   echo "Installing lazygit..."
   LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
     | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*' | sed 's/v//')
+  [[ -n "$LG_VERSION" ]] || { echo "Error: could not determine lazygit version" >&2; exit 1; }
   curl -fsSLo /tmp/lazygit.tar.gz \
     "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/lazygit_${LG_VERSION}_Linux_${ARCH_MUSL}.tar.gz"
   tar -xf /tmp/lazygit.tar.gz -C /tmp lazygit
@@ -68,6 +70,7 @@ if ! command -v yq &>/dev/null; then
   echo "Installing yq..."
   YQ_VERSION=$(curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest" \
     | grep -o '"tag_name": "[^"]*"' | grep -o '"v[^"]*"' | tr -d '"')
+  [[ -n "$YQ_VERSION" ]] || { echo "Error: could not determine yq version" >&2; exit 1; }
   $SUDO curl -fsSLo /usr/local/bin/yq \
     "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${ARCH_GO}"
   $SUDO chmod +x /usr/local/bin/yq
@@ -99,6 +102,7 @@ if ! docker compose version &>/dev/null 2>&1; then
   mkdir -p "$DOCKER_CONFIG/cli-plugins"
   DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" \
     | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*')
+  [[ -n "$DC_VERSION" ]] || { echo "Error: could not determine docker compose version" >&2; exit 1; }
   curl -fsSLo "$DOCKER_CONFIG/cli-plugins/docker-compose" \
     "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-$(uname -m)"
   chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"

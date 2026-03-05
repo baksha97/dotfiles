@@ -118,6 +118,12 @@ cp "stow/git/profiles/$profile" stow/git/.gitconfig-profile
 stow -d stow git -t "$HOME"/ --adopt
 echo "  Git profile set to '$profile'"
 
+# GitHub CLI authentication setup
+if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+  echo "  Ensuring GitHub CLI git-credential helper is linked..."
+  gh auth setup-git
+fi
+
 # Agent Skills — symlink the skills directory for Copilot CLI, Cursor IDE, and others
 skills_src="$(cd meta/.ai-agent/skills && pwd)"
 for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do

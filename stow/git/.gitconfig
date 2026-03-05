@@ -1,14 +1,21 @@
 [include]
-	path = ~/.gitconfig-profile
+        path = ~/.gitconfig-profile
 [core]
-	excludesfile = ~/.gitignore
+        excludesfile = ~/.gitignore
 [filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
+        clean = git-lfs clean -- %f
+        smudge = git-lfs smudge -- %f
+        process = git-lfs filter-process
+        required = true
 [credential]
-	helper = 
-	helper = /usr/local/share/gcm-core/git-credential-manager
+        helper = 
+        # macOS built-in keychain (fails silently on Linux)
+        helper = osxkeychain
+[credential "https://github.com"]
+        helper = 
+        helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+        helper = 
+        helper = !gh auth git-credential
 [credential "https://dev.azure.com"]
-	useHttpPath = true
+        useHttpPath = true

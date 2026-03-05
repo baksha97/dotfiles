@@ -86,13 +86,13 @@ fi
 # ── uv ──────────────────────────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
   echo "Installing uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  curl -LsSf https://astral.sh/uv/install.sh | bash
 fi
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   echo "Installing Docker..."
-  curl -fsSL https://get.docker.com | sh
+  curl -fsSL https://get.docker.com | bash
 fi
 
 # ── Docker Compose plugin ────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ fi
 # ── Tailscale ───────────────────────────────────────────────────────────────
 if ! command -v tailscale &>/dev/null; then
   echo "Installing Tailscale..."
-  curl -fsSL https://tailscale.com/install.sh | sh
+  curl -fsSL https://tailscale.com/install.sh | bash
 fi
 
 # ── Node.js (LTS) ────────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ fi
 # ── opencode ─────────────────────────────────────────────────────────────────
 if ! command -v opencode &>/dev/null; then
   echo "Installing opencode..."
-  curl -fsSL https://opencode.ai/install | sh
+  curl -fsSL https://opencode.ai/install | bash
 fi
 
 # ── Nerd Fonts ──────────────────────────────────────────────────────────────

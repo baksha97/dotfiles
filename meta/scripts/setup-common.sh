@@ -1,67 +1,10 @@
 #!/bin/zsh
+# setup-common.sh — platform-agnostic stow, git, and skills setup.
+# Expects $profile and $DOTFILES_DIR to be set by the calling script.
 
 set -e
 
-profile="${1:-personal}"
-
-# Validate profile
-if [ ! -f "stow/git/profiles/$profile" ]; then
-  echo "Error: profile '$profile' not found in stow/git/profiles/"
-  exit 1
-fi
-
-# Show hidden files in file manager
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  gsettings set org.gnome.nautilus.preferences show-hidden-files true
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  defaults write com.apple.finder AppleShowAllFiles YES
-fi
-
-# Check if Homebrew is installed, install if not
-if ! command -v brew &> /dev/null; then
-  echo "Homebrew not found, installing..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
-
-# Install packages for the selected profile
-brew bundle --file="meta/homebrew/Brewfile.$profile"
-
-# Install Nerd Fonts on Linux (macOS handles this via Brewfile casks)
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  nerd_fonts_version="v3.3.0"
-  nerd_fonts=(
-    DroidSansMono
-    FiraCode
-    JetBrainsMono
-    Meslo
-    Mononoki
-    RobotoMono
-    SourceCodePro
-    NerdFontsSymbolsOnly
-  )
-  font_dir="$HOME/.local/share/fonts"
-  mkdir -p "$font_dir"
-  echo "Installing Nerd Fonts..."
-  fonts_changed=false
-  for font in "${nerd_fonts[@]}"; do
-    marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
-    if [[ -f "$marker" ]]; then
-      echo "  Skipped $font (already installed)"
-      continue
-    fi
-    curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_fonts_version}/${font}.tar.xz" \
-      | tar -xJ -C "$font_dir"
-    touch "$marker"
-    echo "  Installed $font"
-    fonts_changed=true
-  done
-  if [[ "$fonts_changed" == true ]]; then
-    fc-cache -f "$font_dir"
-    echo "  Font cache updated"
-  fi
-fi
-
-# Install SDKMAN! if not installed
+# Install SDKMAN! if not present
 if [ ! -d "$HOME/.sdkman" ]; then
   curl -s "https://get.sdkman.io" | bash
   source "$HOME/.sdkman/bin/sdkman-init.sh"
@@ -86,7 +29,6 @@ if [ -d "$DOTFILES_DIR/alacritty" ] && [ ! -L "$DOTFILES_DIR/alacritty" ]; then
     cp -R "$old_config/" "$backup_dir/config-from-alacritty/"
     for d in "$old_config"/*/; do
       name="$(basename "$d")"
-      # Skip if it's the tracked alacritty config (managed by stow/alacritty/.config/alacritty)
       [ "$name" = "alacritty" ] && continue
       if [ ! -e "$new_config/$name" ]; then
         cp -R "$d" "$new_config/$name"
@@ -103,6 +45,7 @@ fi
 # Back up real files (not symlinks) before removing, then clean up all targets
 stow_targets=(
   "$HOME/.zshrc"
+  "$HOME/.zshrc.d"
   "$HOME/.p10k.zsh"
   "$HOME/.tmux.conf"
   "$HOME/.gitconfig"
@@ -146,14 +89,15 @@ stow -d stow powerlevel10k -t "$HOME" --adopt
 stow -d stow tmux -t "$HOME" --adopt
 stow -d stow alacritty -t "$HOME" --adopt --no-folding
 
-# VSCode settings — platform-specific path
+# VSCode settings — only stow if VSCode/Cursor is actually installed
 if [[ "$OSTYPE" == "darwin"* ]]; then
   vscode_dir="$HOME/Library/Application Support/Code/User"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+elif [[ "$OSTYPE" == "linux-gnu"* ]] && command -v code &>/dev/null; then
   vscode_dir="$HOME/.config/Code/User"
 fi
 
 if [ -n "$vscode_dir" ]; then
+  mkdir -p "$vscode_dir"
   vscode_stow_files=(.vscode keybindings.json settings.json)
   for f in "${vscode_stow_files[@]}"; do
     target="$vscode_dir/$f"
@@ -175,7 +119,6 @@ stow -d stow git -t "$HOME"/ --adopt
 echo "  Git profile set to '$profile'"
 
 # Agent Skills — symlink the skills directory for Copilot CLI and Cursor IDE
-# VS Code discovers skills via chat.agentSkillsLocations in vscode/settings.json
 skills_src="$(cd meta/.ai-agent/skills && pwd)"
 for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills"; do
   if [ -L "$target" ]; then
@@ -183,6 +126,7 @@ for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills"; do
   elif [ -d "$target" ]; then
     rm -rf "$target"
   fi
+  mkdir -p "$(dirname "$target")"
   ln -s "$skills_src" "$target"
   echo "  Linked $target -> $skills_src"
 done

@@ -19,6 +19,14 @@ if ! command -v brew &>/dev/null; then
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
+# Eval shellenv for current session — required on Apple Silicon where Homebrew
+# lands in /opt/homebrew (not on PATH by default until shell profile is sourced)
+if [[ -x "/opt/homebrew/bin/brew" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x "/usr/local/bin/brew" ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
 brew update
 brew bundle --verbose --file="meta/homebrew/Brewfile.$profile"
 

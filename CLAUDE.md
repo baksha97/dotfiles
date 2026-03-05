@@ -8,9 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./main.sh setup [profile]        # Bootstrap the system — auto-detects OS (default: personal)
 ./main.sh brew backup [profile]  # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
 ./main.sh alacritty-icon         # Replace Alacritty app icon
+./install.sh <command>           # Non-symlink "merge" installer (skills, zsh, fonts, git, all)
 ```
 
-`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses (`source`, not `exec`). OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh` and `setup-linux.sh`, with shared logic in `setup-common.sh`.
+`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. `install.sh` is a standalone utility for merging specific configurations without using symlinks.
 
 ## Architecture
 
@@ -34,6 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `setup-common.sh` | Shared bootstrap logic (SDKMAN!, stow packages, git profile, agent skills) |
 | `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
+| `install.sh` | Standalone non-symlink installer (merges skills, zsh utils, fonts, and git profiles) |
 
 ## Linux Setup Details
 

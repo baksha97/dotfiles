@@ -11,6 +11,7 @@ Usage: ./main.sh <command> [options]
 
 Commands:
   setup [profile]          Bootstrap the system (auto-detects OS, default profile: personal)
+  install <pkg> [sub]      Non-symlink "merge" installer (skills, zsh, fonts, git, all)
   brew backup [profile]    Dump current Homebrew state to meta/homebrew/Brewfile.<profile>
   alacritty-icon           Replace the Alacritty app icon
 
@@ -22,6 +23,8 @@ Profiles:
 Examples:
   ./main.sh setup              # full setup with "personal" profile
   ./main.sh setup work         # full setup with "work" profile
+  ./main.sh install all        # merge all non-symlink configs
+  ./main.sh install zsh utils  # merge only utils.zsh
   ./main.sh brew backup        # dump Homebrew state to meta/homebrew/Brewfile.personal
   ./main.sh brew backup work   # dump Homebrew state to meta/homebrew/Brewfile.work
   ./main.sh alacritty-icon     # replace Alacritty icon
@@ -40,6 +43,9 @@ case "$command" in
     else
       echo "Unsupported OS: $OSTYPE"; exit 1
     fi
+    ;;
+  install)
+    source "$DOTFILES_DIR/meta/scripts/installer.sh" "$@"
     ;;
   brew)
     subcommand="${1:-}"

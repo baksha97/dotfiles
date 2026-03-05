@@ -28,10 +28,27 @@ cd ~/dotfiles
 ./main.sh setup work     # full setup with "work" profile
 ```
 
+### Standalone Installer (Non-Symlink)
+
+If you prefer a "merge" approach (copying files instead of symlinking), use the standalone installer:
+
+```bash
+./main.sh install all             # Merge skills, zsh utils, fonts, and git profiles
+./main.sh install skills [name]   # Install all or a specific agent skill
+./main.sh install zsh [name]      # Install all or a specific zsh utility
+./main.sh install fonts           # Install Nerd Fonts only
+./main.sh install git             # Install git profiles only
+
+# Examples:
+./main.sh install zsh utils       # Install only utils.zsh
+./main.sh install skills coroutines # Install android-coroutines skill
+```
+
 ### All Commands
 
 ```bash
 ./main.sh setup [profile]        # bootstrap the system (default profile: personal)
+./main.sh install <pkg> [sub]    # non-symlink "merge" installer (skills, zsh, fonts, git, all)
 ./main.sh brew backup [profile]  # dump current Homebrew state to Brewfile.<profile>
 ./main.sh alacritty-icon         # replace the Alacritty app icon
 ```
@@ -205,6 +222,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 |------|---------------|
 | **Copilot CLI** | `~/.copilot/skills` |
 | **Cursor IDE** | `~/.cursor/skills` |
+| **Common Agent Path** | `~/.agents/skills` |
 
 ### Included Skills
 
@@ -336,6 +354,18 @@ Replaces the default Alacritty icon with a custom one from [macOSicons](https://
 
 ```bash
 ./main.sh alacritty-icon
+```
+
+### `main.sh install`
+
+The standalone non-symlink "merge" installer. Useful for environments where symlinks are restricted or a simple copy-based setup is preferred.
+
+```bash
+./main.sh install all        # Run all merge operations
+./main.sh install skills     # Merge Agent Skills into Copilot/Cursor paths
+./main.sh install zsh        # Install Zsh utilities and update .zshrc
+./main.sh install fonts      # Install Nerd Fonts (JetBrainsMono, FiraCode, Meslo)
+./main.sh install git        # Install Git profiles to ~/profiles/
 ```
 
 ## Custom Shell Functions

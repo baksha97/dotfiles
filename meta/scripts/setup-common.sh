@@ -118,9 +118,9 @@ cp "stow/git/profiles/$profile" stow/git/.gitconfig-profile
 stow -d stow git -t "$HOME"/ --adopt
 echo "  Git profile set to '$profile'"
 
-# Agent Skills — symlink the skills directory for Copilot CLI and Cursor IDE
+# Agent Skills — symlink the skills directory for Copilot CLI, Cursor IDE, and others
 skills_src="$(cd meta/.ai-agent/skills && pwd)"
-for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills"; do
+for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do
   if [ -L "$target" ]; then
     rm "$target"
   elif [ -d "$target" ]; then

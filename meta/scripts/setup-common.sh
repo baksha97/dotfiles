@@ -88,10 +88,10 @@ stow -d stow powerlevel10k -t "$HOME" --adopt
 stow -d stow tmux -t "$HOME" --adopt
 stow -d stow alacritty -t "$HOME" --adopt --no-folding
 
-# VSCode settings — platform-specific path
+# VSCode settings — only stow if VSCode/Cursor is actually installed
 if [[ "$OSTYPE" == "darwin"* ]]; then
   vscode_dir="$HOME/Library/Application Support/Code/User"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+elif [[ "$OSTYPE" == "linux-gnu"* ]] && command -v code &>/dev/null; then
   vscode_dir="$HOME/.config/Code/User"
 fi
 

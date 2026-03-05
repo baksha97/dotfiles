@@ -11,3 +11,8 @@ rclone
 fontconfig
 unzip
 zip
+aria2
+ffmpeg
+ansible
+libimage-exiftool-perl
+scrcpy

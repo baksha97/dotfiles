@@ -86,28 +86,47 @@ if ! command -v uv &>/dev/null; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 
-# ── typos ───────────────────────────────────────────────────────────────────
-if ! command -v typos &>/dev/null; then
-  echo "Installing typos..."
-  TYPOS_VERSION=$(curl -s "https://api.github.com/repos/crate-ci/typos/releases/latest" \
-    | grep -o '"tag_name": "[^"]*"' | grep -o '"v[^"]*"' | tr -d '"')
-  curl -fsSLo /tmp/typos.tar.gz \
-    "https://github.com/crate-ci/typos/releases/download/${TYPOS_VERSION}/typos-${TYPOS_VERSION}-${ARCH_MUSL}-unknown-linux-musl.tar.gz"
-  tar -xf /tmp/typos.tar.gz -C /tmp ./typos
-  $SUDO install /tmp/typos /usr/local/bin/typos
-  rm /tmp/typos /tmp/typos.tar.gz
-fi
-
 # ── Docker ──────────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   echo "Installing Docker..."
   curl -fsSL https://get.docker.com | sh
 fi
 
+# ── Docker Compose plugin ────────────────────────────────────────────────────
+if ! docker compose version &>/dev/null 2>&1; then
+  echo "Installing Docker Compose plugin..."
+  DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"
+  mkdir -p "$DOCKER_CONFIG/cli-plugins"
+  DC_VERSION=$(curl -s "https://api.github.com/repos/docker/compose/releases/latest" \
+    | grep -o '"tag_name": "v[^"]*"' | grep -o 'v[^"]*')
+  curl -fsSLo "$DOCKER_CONFIG/cli-plugins/docker-compose" \
+    "https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-$(uname -m)"
+  chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"
+fi
+
 # ── Tailscale ───────────────────────────────────────────────────────────────
 if ! command -v tailscale &>/dev/null; then
   echo "Installing Tailscale..."
   curl -fsSL https://tailscale.com/install.sh | sh
+fi
+
+# ── Node.js (LTS) ────────────────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
+  echo "Installing Node.js LTS..."
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO bash -
+  $SUDO apt-get install -y nodejs
+fi
+
+# ── vercel ───────────────────────────────────────────────────────────────────
+if ! command -v vercel &>/dev/null; then
+  echo "Installing vercel..."
+  $SUDO npm install -g vercel
+fi
+
+# ── opencode ─────────────────────────────────────────────────────────────────
+if ! command -v opencode &>/dev/null; then
+  echo "Installing opencode..."
+  curl -fsSL https://opencode.ai/install | sh
 fi
 
 # ── Nerd Fonts ──────────────────────────────────────────────────────────────
@@ -143,4 +162,85 @@ if [[ "$fonts_changed" == true ]]; then
   echo "  Font cache updated"
 fi
 
+# ── Headful (GUI desktop) apps ───────────────────────────────────────────────
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" || -n "${XDG_CURRENT_DESKTOP:-}" ]]; then
+  echo "Headful environment detected — installing GUI apps..."
+
+  # VS Code
+  if ! command -v code &>/dev/null; then
+    echo "  Installing VS Code..."
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+      | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y code
+  fi
+
+  # VS Code Insiders
+  if ! command -v code-insiders &>/dev/null; then
+    echo "  Installing VS Code Insiders..."
+    # Key already added above if VS Code was just installed; ensure it exists
+    if [[ ! -f /etc/apt/keyrings/microsoft.gpg ]]; then
+      curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+        | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
+      $SUDO apt-get update -qq
+    fi
+    $SUDO apt-get install -y code-insiders
+  fi
+
+  # Google Chrome (amd64 only)
+  if [[ "$ARCH_GO" == "amd64" ]] && ! command -v google-chrome-stable &>/dev/null; then
+    echo "  Installing Google Chrome..."
+    curl -fsSLo /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    $SUDO apt-get install -y /tmp/google-chrome.deb
+    rm /tmp/google-chrome.deb
+  fi
+
+  # Firefox
+  if ! command -v firefox &>/dev/null; then
+    echo "  Installing Firefox..."
+    $SUDO apt-get install -y firefox
+  fi
+
+  # VLC
+  if ! command -v vlc &>/dev/null; then
+    echo "  Installing VLC..."
+    $SUDO apt-get install -y vlc
+  fi
+
+  # Alacritty
+  if ! command -v alacritty &>/dev/null; then
+    echo "  Installing Alacritty..."
+    $SUDO add-apt-repository -y ppa:aslatter/ppa
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y alacritty
+  fi
+
+  # Android Studio
+  if [[ ! -d /opt/android-studio ]]; then
+    echo "  Installing Android Studio..."
+    AS_URL=$(curl -s "https://jb.gg/ide/index.xml" \
+      | grep -oP 'https://[^"]+android-studio[^"]+linux\.tar\.gz' | head -1)
+    if [[ -n "$AS_URL" ]]; then
+      curl -fsSLo /tmp/android-studio.tar.gz "$AS_URL"
+      $SUDO tar -xf /tmp/android-studio.tar.gz -C /opt
+      rm /tmp/android-studio.tar.gz
+    else
+      echo "  Warning: Could not determine Android Studio download URL, skipping."
+    fi
+  fi
+fi
+
 source "$DOTFILES_DIR/meta/scripts/setup-common.sh"
+
+# ── SDKMAN packages ───────────────────────────────────────────────────────────
+if [[ -f "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
+  set +e
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+  set -e
+  command -v gradle  &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install gradle  < /dev/null || true
+  command -v kotlinc &>/dev/null || SDKMAN_AUTO_ANSWER=true sdk install kotlin  < /dev/null || true
+fi

@@ -35,8 +35,37 @@ fi
 # Clean up .DS_Store files that cause stow conflicts on macOS
 find . -name .DS_Store -delete
 
-# Back up real files (not symlinks) before removing, then clean up all targets
 backup_dir="backup/$(date +%Y-%m-%d_%H-%M-%S)"
+backed_up=false
+
+# Migrate old layout: root alacritty/ folder was the former stow package, which caused
+# ~/.config to be symlinked entirely. Device-specific configs accumulated inside it.
+# Move them to stow/alacritty/.config/ (gitignored) and remove the old folder.
+if [ -d "$DOTFILES_DIR/alacritty" ] && [ ! -L "$DOTFILES_DIR/alacritty" ]; then
+  echo "  Detected old alacritty/ layout — migrating device-specific configs..."
+  old_config="$DOTFILES_DIR/alacritty/.config"
+  new_config="$DOTFILES_DIR/stow/alacritty/.config"
+  if [ -d "$old_config" ]; then
+    mkdir -p "$backup_dir"
+    backed_up=true
+    cp -R "$old_config/" "$backup_dir/config-from-alacritty/"
+    for d in "$old_config"/*/; do
+      name="$(basename "$d")"
+      # Skip if it's the tracked alacritty config (managed by stow/alacritty/.config/alacritty)
+      [ "$name" = "alacritty" ] && continue
+      if [ ! -e "$new_config/$name" ]; then
+        cp -R "$d" "$new_config/$name"
+        echo "    Migrated: $name"
+      else
+        echo "    Skipped (already in stow): $name"
+      fi
+    done
+  fi
+  rm -rf "$DOTFILES_DIR/alacritty"
+  echo "  Removed old alacritty/ folder"
+fi
+
+# Back up real files (not symlinks) before removing, then clean up all targets
 stow_targets=(
   "$HOME/.zshrc"
   "$HOME/.p10k.zsh"
@@ -47,7 +76,6 @@ stow_targets=(
   "$HOME/profiles"
 )
 
-backed_up=false
 for target in "${stow_targets[@]}"; do
   if [ -e "$target" ] && [ ! -L "$target" ]; then
     if [ "$backed_up" = false ]; then

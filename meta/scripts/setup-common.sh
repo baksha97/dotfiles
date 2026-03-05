@@ -45,6 +45,7 @@ fi
 # Back up real files (not symlinks) before removing, then clean up all targets
 stow_targets=(
   "$HOME/.zshrc"
+  "$HOME/.zshrc.d"
   "$HOME/.p10k.zsh"
   "$HOME/.tmux.conf"
   "$HOME/.gitconfig"

@@ -52,7 +52,7 @@ stow/
 │   ├── .gitconfig          →  ~/.gitconfig
 │   └── .gitignore          →  ~/.gitignore
 ├── alacritty/
-│   └── .config/alacritty/  →  ~/.config/alacritty/
+│   ├── .config/alacritty/  →  ~/.config/alacritty/
 │   └── .config/linearmouse/ →  ~/.config/linearmouse/ (macOS mouse config)
 └── ...
 ```

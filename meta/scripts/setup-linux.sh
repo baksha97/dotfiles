@@ -133,6 +133,12 @@ if ! command -v vercel &>/dev/null; then
   $SUDO npm install -g vercel
 fi
 
+# ── gemini cli ───────────────────────────────────────────────────────────────
+if ! command -v gemini &>/dev/null; then
+  echo "Installing gemini cli..."
+  $SUDO npm install -g @google/gemini-cli
+fi
+
 # ── opencode ─────────────────────────────────────────────────────────────────
 if ! command -v opencode &>/dev/null; then
   echo "Installing opencode..."

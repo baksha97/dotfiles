@@ -77,7 +77,7 @@ fi
 if ! command -v just &>/dev/null; then
   echo "Installing just..."
   curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \
-    | bash -s -- --to /usr/local/bin
+    | $SUDO bash -s -- --to /usr/local/bin
 fi
 
 # ── uv ──────────────────────────────────────────────────────────────────────

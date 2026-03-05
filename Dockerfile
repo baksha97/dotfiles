@@ -1,22 +1,18 @@
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-# Prevents the Homebrew install script from prompting
-ENV NONINTERACTIVE=1
 
-# Homebrew dependencies + zsh + fontconfig (for fc-cache)
+# Minimal bootstrap deps — setup-linux.sh installs the rest via apt
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    procps \
     curl \
-    file \
     git \
     zsh \
     fontconfig \
     sudo \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Homebrew refuses to run as root
+# Run as non-root so $SUDO resolves correctly in setup-linux.sh
 RUN useradd -m -s /bin/zsh dotfiles && \
     echo "dotfiles ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 

@@ -1,0 +1,11 @@
+ca-certificates
+curl
+git
+git-lfs
+stow
+zsh
+tmux
+fzf
+jq
+ansible
+rclone

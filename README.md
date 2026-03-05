@@ -180,7 +180,7 @@ On Linux, the setup installs:
 
 **Official install scripts** (all architectures):
 - `gh` CLI, `lazygit`, `zoxide`, `yq`, `just`, `uv`, `docker`, `docker-compose`
-- `tailscale`, `nodejs`, `vercel`, `typos`, `opencode`
+- `tailscale`, `nodejs`, `vercel`, `opencode`
 - **Nerd Fonts**: DroidSansMono, FiraCode, JetBrainsMono, Meslo, Mononoki, RobotoMono, SourceCodePro, SymbolsOnly
 
 **GUI apps** (headful environments only - when `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_CURRENT_DESKTOP` is set):

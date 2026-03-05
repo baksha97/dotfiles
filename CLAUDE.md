@@ -31,7 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Script | Purpose |
 |--------|---------|
 | `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle from Brewfile.<profile>) |
-| `setup-linux.sh` | Linux bootstrap (apt + official installers for gh, lazygit, zoxide, yq, just, uv, typos, Docker, Tailscale, Nerd Fonts, plus GUI apps in headful environments) |
+| `setup-linux.sh` | Linux bootstrap (apt + official installers for gh, lazygit, zoxide, yq, just, uv, Docker, Tailscale, Nerd Fonts, plus GUI apps in headful environments) |
 | `setup-common.sh` | Shared bootstrap logic (SDKMAN!, stow packages, git profile, agent skills) |
 | `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The Linux setup (`setup-linux.sh`) installs packages in this order:
 
 1. **apt packages** from `meta/packages/linux.packages` (ca-certificates, curl, git, git-lfs, stow, zsh, tmux, fzf, jq, rclone, fontconfig, unzip, zip, aria2, ffmpeg, ansible, exiftool, scrcpy)
-2. **CLI tools** via official install scripts: gh CLI, lazygit, zoxide, yq, just, uv, Docker, Docker Compose plugin, Tailscale, Node.js LTS, vercel, typos, opencode
+2. **CLI tools** via official install scripts: gh CLI, lazygit, zoxide, yq, just, uv, Docker, Docker Compose plugin, Tailscale, Node.js LTS, vercel, opencode
 3. **Nerd Fonts** to `~/.local/share/fonts/`
 4. **GUI apps** (only in headful environments): VS Code, VS Code Insiders, Google Chrome (amd64), Firefox, VLC, Alacritty, Android Studio
 5. **SDKMAN!** then installs Gradle and Kotlin

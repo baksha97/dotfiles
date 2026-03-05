@@ -10,14 +10,14 @@ usage() {
 Usage: ./main.sh <command> [options]
 
 Commands:
-  setup [profile]          Bootstrap the system (default profile: personal)
+  setup [profile]          Bootstrap the system (auto-detects OS, default profile: personal)
   brew backup [profile]    Dump current Homebrew state to meta/homebrew/Brewfile.<profile>
   alacritty-icon           Replace the Alacritty app icon
 
 Profiles:
-  Profiles control git identity and Homebrew packages.
+  Profiles control git identity (and Homebrew packages on macOS).
   Available profiles are defined in stow/git/profiles/.
-  Each profile has a matching meta/homebrew/Brewfile.<profile>.
+  On macOS each profile has a matching meta/homebrew/Brewfile.<profile>.
 
 Examples:
   ./main.sh setup              # full setup with "personal" profile
@@ -32,7 +32,15 @@ command="${1:-}"
 shift 2>/dev/null || true
 
 case "$command" in
-  setup)          source "$DOTFILES_DIR/meta/scripts/setup.sh" "$@" ;;
+  setup)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      source "$DOTFILES_DIR/meta/scripts/setup-macos.sh" "$@"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+      source "$DOTFILES_DIR/meta/scripts/setup-linux.sh" "$@"
+    else
+      echo "Unsupported OS: $OSTYPE"; exit 1
+    fi
+    ;;
   brew)
     subcommand="${1:-}"
     shift 2>/dev/null || true

@@ -92,7 +92,7 @@ stow -d stow alacritty -t "$HOME" --adopt --no-folding
 # VSCode settings — only stow if VSCode/Cursor is actually installed
 if [[ "$OSTYPE" == "darwin"* ]]; then
   vscode_dir="$HOME/Library/Application Support/Code/User"
-elif [[ "$OSTYPE" == "linux-gnu"* ]] && command -v code &>/dev/null; then
+elif [[ "$OSTYPE" == "linux"* ]] && command -v code &>/dev/null; then
   vscode_dir="$HOME/.config/Code/User"
 fi
 

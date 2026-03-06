@@ -1,5 +1,5 @@
 ---
-name: async-runner
+name: local-ci-runner
 description: A universal Python-based runner for asynchronous tasks and GitHub Workflows with real-time visualization. Adaptively generates or uses task presets to run local CI checks.
 ---
 

@@ -1,8 +1,3 @@
----
-name: gradle-build-performance
-description: Debug and optimize Android/Gradle build performance. Use when builds are slow, investigating CI/CD performance, analyzing build scans, or identifying compilation bottlenecks.
----
-
 # Gradle Build Performance
 
 ## When to Use
@@ -309,16 +304,16 @@ develocity {
 
 ## Android Studio Settings
 
-### File → Settings → Build → Gradle
+### File > Settings > Build > Gradle
 
 - **Gradle JDK**: Match your project's JDK
 - **Build and run using**: Gradle (not IntelliJ)
 - **Run tests using**: Gradle
 
-### File → Settings → Build → Compiler
+### File > Settings > Build > Compiler
 
-- **Compile independent modules in parallel**: ✅ Enabled
-- **Configure on demand**: ❌ Disabled (deprecated)
+- **Compile independent modules in parallel**: Enabled
+- **Configure on demand**: Disabled (deprecated)
 
 ---
 

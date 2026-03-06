@@ -1,11 +1,6 @@
----
-name: android-gradle-logic
-description: Expert guidance on setting up scalable Gradle build logic using Convention Plugins and Version Catalogs.
----
-
 # Android Gradle Build Logic & Convention Plugins
 
-This skill helps you configure a scalable, maintainable build system for Android apps using **Gradle Convention Plugins** and **Version Catalogs**, following the "Now in Android" (NiA) architecture.
+This reference helps you configure a scalable, maintainable build system for Android apps using **Gradle Convention Plugins** and **Version Catalogs**, following the "Now in Android" (NiA) architecture.
 
 ## Goal
 Stop copy-pasting code between `build.gradle.kts` files. Centralize build logic (Compose setup, Kotlin options, Hilt, etc.) in reusable plugins.

@@ -10,21 +10,24 @@ fi
 # Source/Load zinit
 source "${ZINIT_HOME}/zinit.zsh"
 
-# Add in Powerlevel10k
-zinit ice depth=1; zinit light romkatv/powerlevel10k
+# Only load UI plugins in interactive terminal sessions
+if [[ -t 1 ]]; then
+  # Add in Powerlevel10k
+  zinit ice depth=1; zinit light romkatv/powerlevel10k
 
-# Add in zsh plugins
-zinit light zsh-users/zsh-syntax-highlighting
-zinit light zsh-users/zsh-completions
-zinit light zsh-users/zsh-autosuggestions
-zinit light Aloxaf/fzf-tab
+  # Add in zsh plugins
+  zinit light zsh-users/zsh-syntax-highlighting
+  zinit light zsh-users/zsh-completions
+  zinit light zsh-users/zsh-autosuggestions
+  zinit light Aloxaf/fzf-tab
 
-# Add in snippets
-zinit snippet OMZP::git
-zinit snippet OMZP::command-not-found
+  # Add in snippets
+  zinit snippet OMZP::git
+  zinit snippet OMZP::command-not-found
 
-# Load completions
-autoload -Uz compinit && compinit
+  # Load completions
+  autoload -Uz compinit && compinit
 
-# Ensure plugins are correctly loaded
-zinit cdreplay -q
+  # Ensure plugins are correctly loaded
+  zinit cdreplay -q
+fi

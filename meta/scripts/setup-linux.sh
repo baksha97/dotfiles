@@ -154,6 +154,12 @@ if ! command -v opencode &>/dev/null && [ ! -f "$HOME/.opencode/bin/opencode" ];
   curl -fsSL https://opencode.ai/install | bash
 fi
 
+# ── claude ───────────────────────────────────────────────────────────────────
+if ! command -v claude &>/dev/null; then
+  echo "Installing claude..."
+  curl -fsSL https://claude.ai/install.sh | bash
+fi
+
 # ── Nerd Fonts ──────────────────────────────────────────────────────────────
 nerd_fonts_version="v3.3.0"
 nerd_fonts=(

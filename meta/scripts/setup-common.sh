@@ -84,7 +84,7 @@ if [ "$backed_up" = true ]; then
   echo "  Backed up existing configs to $backup_dir/"
 fi
 
-stow -d stow zsh -t "$HOME" --adopt
+stow -d stow zsh -t "$HOME" --adopt --no-folding
 stow -d stow powerlevel10k -t "$HOME" --adopt
 stow -d stow tmux -t "$HOME" --adopt
 stow -d stow alacritty -t "$HOME" --adopt --no-folding

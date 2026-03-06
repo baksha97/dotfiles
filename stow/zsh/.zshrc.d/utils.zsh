@@ -35,11 +35,17 @@ gct() {
   fi
 }
 
-# Usage: grmt [<worktree-path>]
+# Usage: grmt [--force|-f] [<worktree-path>]
 # With no args, removes the worktree you're currently in.
 # With a path arg, removes that worktree instead.
 # Either way, cd's to the main repo root afterwards.
 grmt() {
+  local force_flag=""
+  if [[ "$1" == "--force" || "$1" == "-f" ]]; then
+    force_flag="--force"
+    shift
+  fi
+
   local target="${1:-$(git rev-parse --show-toplevel)}"
   target="${target:A}"  # resolve to absolute/canonical path
 
@@ -50,5 +56,9 @@ grmt() {
     return 1
   fi
 
-  cd "$main_worktree" && git worktree remove "$target"
+  if [[ -n "$force_flag" ]]; then
+    cd "$main_worktree" && git worktree remove --force "$target"
+  else
+    cd "$main_worktree" && git worktree remove "$target"
+  fi
 }

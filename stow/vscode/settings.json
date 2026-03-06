@@ -34,5 +34,6 @@
       "approveRequest": false,
       "approveResponse": true
     }
-  }
+  },
+  "git.openRepositoryInParentFolders": "always"
 }

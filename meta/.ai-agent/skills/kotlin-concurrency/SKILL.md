@@ -1,9 +1,9 @@
 ---
-name: kotlin-concurrency-expert
+name: kotlin-concurrency
 description: Kotlin Coroutines review and remediation for Android. Use when asked to review concurrency usage, fix coroutine-related bugs, improve thread safety, or resolve lifecycle issues in Kotlin/Android code.
 ---
 
-# Kotlin Concurrency Expert
+# Kotlin Concurrency
 
 ## Overview
 

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ skill_name }} — Dashboard</title>
+  <style>
+    :root{--bg:#0f1117;--sur:#1a1d27;--sur2:#252a3a;--txt:#e0e0e0;--dim:#666;--grn:#4caf50;--red:#f44336;--ylw:#f59e0b}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;font-size:14px;height:100vh;display:flex;flex-direction:column}
+    header{background:var(--sur);padding:18px 24px;border-bottom:1px solid var(--sur2);flex-shrink:0}
+    h1{font-size:17px;font-weight:600;margin-bottom:6px}
+    #banner{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+    .b-idle{background:var(--sur2);color:var(--dim)}
+    .b-run{background:var(--ylw);color:#111}
+    .b-pass{background:var(--grn);color:#fff}
+    .b-fail{background:var(--red);color:#fff}
+    #meta{color:var(--dim);font-size:12px;display:flex;gap:18px;flex-wrap:wrap}
+    #meta b{color:var(--txt)}
+    #gitinfo{color:var(--dim);font-size:12px;margin-top:6px;}
+    #gitinfo span{margin-right:12px;}
+    .main{display:flex;flex:1;overflow:hidden}
+    .tbl-wrap{flex:0 0 auto;overflow-y:auto;min-width:540px}
+    table{border-collapse:collapse;width:100%}
+    thead th{padding:9px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);background:var(--sur);border-bottom:1px solid var(--sur2);white-space:nowrap}
+    tbody tr{border-bottom:1px solid #1c1f2b;cursor:pointer;transition:background .1s}
+    tbody tr:hover{background:var(--sur)}
+    tbody tr.sel{background:var(--sur2)}
+    td{padding:10px 16px;vertical-align:middle}
+    .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;min-width:68px;text-align:center}
+    .s-QUEUED,.s-SKIPPED{background:#2a2d3a;color:var(--dim)}
+    .s-RUNNING{background:var(--ylw);color:#111}
+    .s-PASS{background:var(--grn);color:#fff}
+    .s-FAIL{background:var(--red);color:#fff}
+    .elapsed{color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .reason{color:var(--dim);font-size:12px;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .chkname{font-weight:600;font-size:13px}
+    .spin{display:inline-block;width:10px;height:10px;border:2px solid #555;border-top-color:var(--ylw);border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #log-wrap{flex:1;display:flex;flex-direction:column;border-left:1px solid var(--sur2);min-width:0;overflow:hidden}
+    #log-wrap.hidden{display:none}
+    #log-hdr{background:var(--sur);padding:9px 14px;font-size:12px;color:var(--dim);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--sur2);flex-shrink:0}
+    #log-hdr b{color:var(--txt)}
+    #log-close{cursor:pointer;background:var(--sur2);border:none;color:var(--txt);border-radius:4px;padding:2px 8px;font-size:11px}
+    #log-close:hover{background:#3a3d50}
+    #log-body{flex:1;overflow-y:auto;background:#0a0a0f}
+    #log-body pre{color:#d4d4d4;font-family:'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;padding:14px 16px;white-space:pre-wrap;word-break:break-all}
+    #hint{flex:1;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13px}
+    .btn-cancel{background:var(--red);color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;display:none;margin-top:6px;width:100%}
+    .btn-cancel:hover{background:#d32f2f}
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div id="banner" class="b-idle">Loading...</div>
+      <h1 id="title">{{ skill_name }} — Dashboard</h1>
+      <div id="meta"></div>
+      <div id="gitinfo"></div>
+    </div>
+    <div style="text-align:right; min-width:120px;">
+      <div id="global-timer" style="font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; margin-bottom:4px; color:var(--txt)">0s</div>
+      <button id="cancel-btn" class="btn-cancel" onclick="cancelRun()">Stop Run 🛑</button>
+    </div>
+  </div>
+</header>
+<div class="main">
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Task</th><th>Status</th><th>Elapsed</th><th>Info</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="log-wrap" class="hidden">
+    <div id="log-hdr">
+      <span><span class="spin" id="lspin" style="display:none"></span><b id="ltitle"></b></span>
+      <button id="log-close" onclick="closeLog()">close ✕</button>
+    </div>
+    <div id="log-body"><pre id="log-pre">Select a task to view its log.</pre></div>
+  </div>
+  <div id="hint">← click a row to view its live log</div>
+</div>
+<script>
+let sel=null,timer=null,globalTimerInterval=null,runStart=null,runDone=false;
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function elapsed(start,end){
+  if(!start)return'';
+  const s=Math.floor(((end?new Date(end):new Date())-new Date(start))/1000);
+  return s<60?s+'s':Math.floor(s/60)+'m '+(s%60)+'s';
+}
+
+function updateGlobalTimer() {
+  if (!runStart || runDone) return;
+  document.getElementById('global-timer').textContent = elapsed(runStart, null);
+}
+
+function cancelRun() {
+  if (!confirm('Are you sure you want to cancel the run and kill all tasks?')) return;
+  fetch('/cancel', { method: 'POST' }).then(() => {
+    document.getElementById('cancel-btn').style.display = 'none';
+    document.getElementById('banner').className = 'b-fail';
+    document.getElementById('banner').textContent = 'Cancelled by user';
+    runDone = true;
+    clearInterval(globalTimerInterval);
+  }).catch(e => console.error(e));
+}
+
+function render(data){
+  const tbody=document.getElementById('tbody');
+  const banner=document.getElementById('banner');
+  const meta=document.getElementById('meta');
+  
+  if (data.started_at && !runStart) {
+    runStart = data.started_at;
+    globalTimerInterval = setInterval(updateGlobalTimer, 1000);
+  }
+  runDone = data.done;
+
+  if (runDone) {
+    clearInterval(globalTimerInterval);
+    document.getElementById('cancel-btn').style.display = 'none';
+    if(data.ended_at) document.getElementById('global-timer').textContent = elapsed(runStart, data.ended_at);
+  } else {
+    document.getElementById('cancel-btn').style.display = 'inline-block';
+  }
+
+  meta.innerHTML='<span>Started: <b>'+esc(data.started_at)+'</b></span>'+
+    '<span>Tasks: <b>'+Object.keys(data.checks||{}).length+'</b></span>';
+  
+  if (data.skill_name) {
+    document.getElementById('title').textContent = data.skill_name + ' — Dashboard';
+  }
+
+  document.getElementById('gitinfo').innerHTML = 
+    (data.git_branch && data.git_branch !== 'N/A' ? '<span>Branch: <b>' + esc(data.git_branch) + '</b></span>' : '') +
+    (data.git_base && data.git_base !== 'N/A' ? '<span>Base: <b>' + esc(data.git_base).substring(0,7) + '</b></span>' : '') +
+    (data.git_sha && data.git_sha !== 'N/A' ? '<span>SHA: <b>' + esc(data.git_sha) + '</b></span>' : '') +
+    '<br><span style="margin-top:4px;display:inline-block;color:var(--dim)">System: <b>' + esc(data.sys_info) + '</b></span>';
+
+  // Sort tasks: either by a provided order or alphabetically
+  const taskNames = Object.keys(data.checks || {}).sort((a,b) => {
+    const ca = data.checks[a], cb = data.checks[b];
+    return (ca.order || 0) - (cb.order || 0) || a.localeCompare(b);
+  });
+
+  const rows=taskNames.map(name=>{
+    const c=data.checks[name];
+    const isSel=sel===name?' sel':'';
+    const spin=c.status==='RUNNING'?'<span class="spin"></span>':'';
+    return'<tr class="'+isSel+'" onclick="pick(\''+name+'\')">'+
+      '<td class="chkname">'+esc(c.name || name)+'</td>'+
+      '<td>'+spin+'<span class="badge s-'+c.status+'">'+c.status+'</span></td>'+
+      '<td class="elapsed">'+elapsed(c.started_at,c.ended_at)+'</td>'+
+      '<td class="reason" title="'+esc(c.reason||'')+'">'+esc(c.reason||'')+'</td>'+
+      '</tr>';
+  }).join('');
+  tbody.innerHTML=rows;
+
+  const statuses=Object.values(data.checks || {}).map(c=>c.status);
+  if(data.done){
+    const f=data.failures||0;
+    banner.className=f?'b-fail':'b-pass';
+    banner.textContent=f?(f===1?'1 task failed':f+' tasks failed'):'All tasks completed successfully';
+  }else if(statuses.some(s=>s==='RUNNING')){
+    const running=taskNames.filter(n=>data.checks[n].status==='RUNNING').map(n => data.checks[n].name || n);
+    banner.className='b-run';
+    banner.textContent='Running: '+running.join(', ');
+  }else{
+    banner.className='b-idle';
+    banner.textContent='Queued';
+  }
+}
+
+async function fetchLog(logFile){
+  if(!logFile)return;
+  try{
+    const r=await fetch('/'+logFile+'?t='+Date.now());
+    if(!r.ok)return;
+    const txt=await r.text();
+    const pre=document.getElementById('log-pre');
+    const div=document.getElementById('log-body');
+    const atBot=div.scrollHeight-div.scrollTop<=div.clientHeight+20;
+    pre.textContent=txt;
+    if(atBot)div.scrollTop=div.scrollHeight;
+  }catch(e){}
+}
+
+function pick(name){
+  sel=name;
+  document.getElementById('log-wrap').classList.remove('hidden');
+  document.getElementById('hint').style.display='none';
+  document.getElementById('ltitle').textContent=name;
+  document.getElementById('log-pre').textContent='Loading...';
+  document.getElementById('log-body').scrollTop=0;
+}
+
+function closeLog(){
+  sel=null;
+  document.getElementById('log-wrap').classList.add('hidden');
+  document.getElementById('hint').style.display='flex';
+}
+
+async function poll(){
+  try{
+    const r=await fetch('/status.json?t='+Date.now());
+    if(!r.ok)throw 0;
+    const data=await r.json();
+    render(data);
+    if(sel){
+      const c=data.checks&&data.checks[sel];
+      const spin=document.getElementById('lspin');
+      if(c&&c.log){
+        spin.style.display=c.status==='RUNNING'?'inline-block':'none';
+        await fetchLog(c.log);
+      }
+    }
+    if(!data.done){timer=setTimeout(poll,1000);return;}
+    timer=null;
+  }catch(e){timer=setTimeout(poll,2000);}
+}
+
+poll();
+</script>
+</body>
+</html>

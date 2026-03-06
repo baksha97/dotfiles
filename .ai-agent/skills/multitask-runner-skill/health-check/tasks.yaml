@@ -1,0 +1,22 @@
+name: "System Health Check"
+description: "Monitors local system resources and network"
+tasks:
+  - id: disk-usage
+    name: "Disk Space"
+    command: "df -h /"
+  - id: memory-usage
+    name: "Memory Status"
+    command: "free -m"
+  - id: cpu-load
+    name: "CPU Load"
+    command: "uptime"
+  - id: network-latency
+    name: "Network Ping"
+    command: "ping -c 4 8.8.8.8"
+  - id: env-test
+    name: "Env Variable Check"
+    command: "echo \"App Mode: $APP_MODE\" && env | grep APP_"
+    env:
+      APP_MODE: "Production"
+      APP_DEBUG: "false"
+port: 8082

@@ -1,0 +1,58 @@
+##
+## Android Monorepo CI Checks — Justfile
+##
+## Run from the Android/ workspace root:
+##   just -f <SKILL-DIR>/Justfile <recipe>
+##
+## Or add a top-level Justfile that imports this one.
+##
+
+_script := justfile_directory() / "scripts/run_android_ci_checks.sh"
+
+# Run checks for files changed relative to origin/main (default)
+default:
+    env bash {{_script}} --base-ref origin/main
+
+# Run all Android Integrity check groups regardless of changed files
+full:
+    env bash {{_script}} --full
+
+# Run selected check groups in parallel
+parallel:
+    env bash {{_script}} --parallel
+
+# Run all check groups in parallel
+full-parallel:
+    env bash {{_script}} --full --parallel
+
+# Include MiLB fastlane PR check even if MiLB paths did not change
+include-milb:
+    env bash {{_script}} --include-milb
+
+# Run only the MiLB fastlane PR check
+milb-only:
+    env bash {{_script}} --milb-only
+
+# Skip MiLB fastlane PR check
+skip-milb:
+    env bash {{_script}} --skip-milb
+
+# Apply spotless formatting fixes (default only checks)
+spotless-apply:
+    env bash {{_script}} --spotless-apply
+
+# Skip the spotless check entirely
+skip-spotless:
+    env bash {{_script}} --skip-spotless
+
+# Preview what would run without executing any commands
+dry-run:
+    env bash {{_script}} --dry-run
+
+# Preview full run without executing any commands
+dry-run-full:
+    env bash {{_script}} --full --dry-run
+
+# Run checks in parallel with a live browser dashboard
+dashboard:
+    env bash {{_script}} --dashboard

@@ -84,10 +84,10 @@ if [ "$backed_up" = true ]; then
   echo "  Backed up existing configs to $backup_dir/"
 fi
 
-stow -d stow zsh -t "$HOME" --adopt --no-folding
-stow -d stow powerlevel10k -t "$HOME" --adopt
-stow -d stow tmux -t "$HOME" --adopt
-stow -d stow alacritty -t "$HOME" --adopt --no-folding
+stow -d stow zsh -t "$HOME" --no-folding
+stow -d stow powerlevel10k -t "$HOME"
+stow -d stow tmux -t "$HOME"
+stow -d stow alacritty -t "$HOME" --no-folding
 
 # VSCode settings — only stow if VSCode/Cursor is actually installed
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -115,14 +115,8 @@ fi
 
 # Git configuration
 cp "stow/git/profiles/$profile" stow/git/.gitconfig-profile
-stow -d stow git -t "$HOME"/ --adopt
+stow -d stow git -t "$HOME"/
 echo "  Git profile set to '$profile'"
-
-# GitHub CLI authentication setup
-if command -v gh &>/dev/null && gh auth status &>/dev/null; then
-  echo "  Ensuring GitHub CLI git-credential helper is linked..."
-  gh auth setup-git
-fi
 
 # Agent Skills — symlink the skills directory for Copilot CLI, Cursor IDE, and others
 skills_src="$(cd meta/.ai-agent/skills && pwd)"

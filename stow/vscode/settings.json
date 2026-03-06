@@ -28,5 +28,11 @@
   "swift.disableAutoResolve": true,
   "scm.repositories.selectionMode": "single",
   "chat.viewSessions.orientation": "stacked",
-  "claudeCode.preferredLocation": "panel"
+  "claudeCode.preferredLocation": "panel",
+  "chat.tools.urls.autoApprove": {
+    "https://agentskills.io": {
+      "approveRequest": false,
+      "approveResponse": true
+    }
+  }
 }

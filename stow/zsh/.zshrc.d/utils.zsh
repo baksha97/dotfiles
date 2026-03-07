@@ -101,6 +101,7 @@ link-skills() {
     fi
 
     for skill in "$skills_src"/*/; do
+      skill="${skill%/}"   # strip trailing slash added by glob
       [[ -d "$skill" ]] || continue
       local name=$(basename "$skill")
       local link="$base/$name"
@@ -121,6 +122,7 @@ unlink-skills() {
   local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills")
 
   for skill in "$skills_src"/*/; do
+    skill="${skill%/}"   # strip trailing slash added by glob
     [[ -d "$skill" ]] || continue
     local name=$(basename "$skill")
     for base in "${bases[@]}"; do

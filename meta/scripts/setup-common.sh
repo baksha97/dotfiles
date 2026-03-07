@@ -57,6 +57,7 @@ stow_backup() {
     cp -R "$target" "$backup_dir/"
   fi
   rm -rf "$target"
+  return 0
 }
 
 # stow_package PKG [FLAGS...]

@@ -69,6 +69,7 @@ The Linux setup (`setup-linux.sh`) installs packages in this order:
 | `tmux` | `$HOME` | `.tmux.conf` |
 | `alacritty` | `$HOME` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` |
 | `git` | `$HOME` | `.gitconfig`, `.gitignore` |
+| `claude` | `~/.claude/` | `settings.json`, `status-line.sh`, `commands/`, `agents/`, `scripts/` |
 | `vscode` | Platform-specific VS Code `User/` | `settings.json`, `keybindings.json` |
 
 ## Conventions

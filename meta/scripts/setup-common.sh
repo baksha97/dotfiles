@@ -66,18 +66,24 @@ for target in "${stow_targets[@]}"; do
 done
 
 # Handle ~/.config separately: if it's a stale symlink (from old flat layout), remove it.
-# If it's a real directory, only remove the alacritty subdirectory inside it.
+# If it's a real directory, only remove the alacritty subdirectory if not already stow-managed.
+# stow --no-folding creates ~/.config/alacritty/ as a real dir with symlinks inside —
+# do not wipe it on every run.
 if [ -L "$HOME/.config" ]; then
   rm "$HOME/.config"
-elif [ -d "$HOME/.config/alacritty" ] && [ ! -L "$HOME/.config/alacritty" ]; then
-  if [ "$backed_up" = false ]; then
-    mkdir -p "$backup_dir"
-    backed_up=true
+elif [ -L "$HOME/.config/alacritty" ]; then
+  # Stale folded symlink from old layout — remove so stow can create the real dir.
+  rm "$HOME/.config/alacritty"
+elif [ -d "$HOME/.config/alacritty" ]; then
+  if ! find "$HOME/.config/alacritty" -maxdepth 2 -type l -print -quit | grep -q .; then
+    if [ "$backed_up" = false ]; then
+      mkdir -p "$backup_dir"
+      backed_up=true
+    fi
+    cp -R "$HOME/.config/alacritty" "$backup_dir/"
+    rm -rf "$HOME/.config/alacritty"
   fi
-  cp -R "$HOME/.config/alacritty" "$backup_dir/"
-  rm -rf "$HOME/.config/alacritty"
-else
-  rm -rf "$HOME/.config/alacritty"
+  # else: already stow-managed (contains symlinks) — leave it; stow will skip correct links
 fi
 
 if [ "$backed_up" = true ]; then
@@ -88,6 +94,45 @@ stow -d stow zsh -t "$HOME" --adopt
 stow -d stow powerlevel10k -t "$HOME" --adopt
 stow -d stow tmux -t "$HOME" --adopt
 stow -d stow alacritty -t "$HOME" --adopt --no-folding
+
+# Claude Code settings
+claude_dir="$HOME/.claude"
+mkdir -p "$claude_dir"
+
+# Files: backup if real, always remove so stow can (re-)link.
+claude_stow_files=(settings.json status-line.sh README.md)
+for f in "${claude_stow_files[@]}"; do
+  target="$claude_dir/$f"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    if [ "$backed_up" = false ]; then
+      mkdir -p "$backup_dir"
+      backed_up=true
+    fi
+    cp "$target" "$backup_dir/"
+  fi
+  rm -f "$target"
+done
+
+# Directories: stow --no-folding creates real dirs with symlinks inside.
+# Only backup+remove on first run (no symlinks yet); subsequent runs skip cleanup
+# and let stow skip the already-correct symlinks inside.
+claude_stow_dirs=(commands agents scripts)
+for d in "${claude_stow_dirs[@]}"; do
+  target="$claude_dir/$d"
+  if [ -d "$target" ] && [ ! -L "$target" ]; then
+    if ! find "$target" -maxdepth 3 -type l -print -quit | grep -q .; then
+      if [ "$backed_up" = false ]; then
+        mkdir -p "$backup_dir"
+        backed_up=true
+      fi
+      cp -R "$target" "$backup_dir/"
+      rm -rf "$target"
+    fi
+    # else: already stow-managed — leave in place; stow will skip correct symlinks
+  fi
+done
+
+stow -d stow claude -t "$claude_dir" --adopt --no-folding
 
 # VSCode settings — only stow if VSCode/Cursor is actually installed
 if [[ "$OSTYPE" == "darwin"* ]]; then

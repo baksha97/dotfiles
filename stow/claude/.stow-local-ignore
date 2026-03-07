@@ -1,0 +1,3 @@
+# Local stow ignore rules for the claude package.
+# Intentionally minimal — overrides stow's default list which would skip README.md.
+\.DS_Store

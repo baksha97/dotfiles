@@ -83,6 +83,8 @@ skill-name/
     └── assets/     - Files used in output (templates, icons, fonts)
 ```
 
+Skills live inside a parent `skills/` directory. For **dotfiles-managed global skills**, that's `meta/.ai-agent/skills/`. For **project-specific skills**, place them under one of the conventional paths that `link-skills` auto-discovers (see "Activating Skills in a Project" below).
+
 #### Progressive Disclosure
 
 Skills use a three-level loading system:
@@ -159,6 +161,43 @@ Save test cases to `evals/evals.json`. Don't write assertions yet — just the p
 ```
 
 See `references/schemas.md` for the full schema (including the `assertions` field, which you'll add later).
+
+## Activating Skills in a Project
+
+Before test runs can discover a project-level skill, it must be linked into the agent discovery paths. `link-skills` and `unlink-skills` are shell functions available on the path (from `~/.zshrc.d/utils.zsh`).
+
+```bash
+# From the project root — auto-discovers the skills directory
+link-skills
+
+# Remove only this project's links when done (global dotfiles skills untouched)
+unlink-skills
+```
+
+These functions link each skill subdirectory into `~/.copilot/skills`, `~/.cursor/skills`, and `~/.agents/skills`. If those paths are currently whole-directory symlinks (as set up by the dotfiles bootstrapper), `link-skills` expands them into individual per-skill symlinks first so global and project skills coexist. Both commands are idempotent.
+
+### Auto-discovery convention
+
+`link-skills` probes these directories in priority order and uses the first one found:
+
+| Priority | Path | Convention |
+|----------|------|------------|
+| 1 | `.ai-agent/skills/` | dotfiles / this repo |
+| 2 | `.claude/skills/` | Claude Code |
+| 3 | `.agents/skills/` | Generic agents |
+| 4 | `.github/skills/` | GitHub ecosystem |
+| 5 | `.copilot/skills/` | GitHub Copilot |
+
+When creating a skill for a project, suggest placing it under whichever convention the project already uses. If none exists, default to `.claude/skills/<skill-name>/` for Claude Code projects or `.ai-agent/skills/<skill-name>/` otherwise.
+
+### When to run it
+
+- **New project skill**: after writing the SKILL.md, run `link-skills` before starting eval runs so test subagents can find it.
+- **Unfamiliar project**: if the user asks to work with skills in an existing repo, run `link-skills` to activate whichever convention the repo uses.
+- **Switching projects**: `unlink-skills` in the old project root, then `link-skills` in the new one.
+- **Explicit path**: pass it directly if the skills directory is non-standard: `link-skills path/to/skills`.
+
+---
 
 ## Running and evaluating test cases
 

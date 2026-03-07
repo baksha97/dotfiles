@@ -35,5 +35,6 @@
       "approveResponse": true
     }
   },
-  "git.openRepositoryInParentFolders": "always"
+  "git.openRepositoryInParentFolders": "always",
+  "security.promptForLocalFileProtocolHandling": false
 }

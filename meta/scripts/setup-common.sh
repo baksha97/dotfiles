@@ -82,9 +82,10 @@ if [ "$backed_up" = true ]; then
 fi
 
 # ── GitHub CLI credential helper ──────────────────────────────────────────────
-if command -v gh &>/dev/null && gh auth status &>/dev/null; then
-  echo "  Ensuring GitHub CLI git-credential helper is linked..."
-  gh auth setup-git
+# We manually manage the gh helper in stow/git/.gitconfig using !gh
+# to avoid absolute path pollution from 'gh auth setup-git'.
+if ! command -v gh &>/dev/null; then
+  echo "  Warning: GitHub CLI (gh) not found — credential helper might fail."
 fi
 
 # ── Agent Skills ──────────────────────────────────────────────────────────────

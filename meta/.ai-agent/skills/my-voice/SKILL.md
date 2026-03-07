@@ -1,5 +1,5 @@
 ---
-name: internal-comms
+name: my-voice
 description: Help Travis write internal communications in his voice — Slack messages, technical updates, cross-team requests, investigation summaries, announcements, and emails. Use this skill whenever Travis asks to write any kind of work message, Slack post, team update, status report, technical question, cross-team request, announcement, or email. Also use when he mentions writing to teammates, leadership, other engineering teams, or stakeholders at MLB.
 ---
 

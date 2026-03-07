@@ -51,7 +51,7 @@ link-skills() {
   # so linking there too would cause duplicate skill conflicts.
   local src_ns="${${skills_src:h}:t}"
 
-  local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills")
+  local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills" "$HOME/.claude/skills")
 
   for base in "${bases[@]}"; do
     [[ "${${base:h}:t}" == "$src_ns" ]] && continue
@@ -76,7 +76,7 @@ unlink-skills() {
   skills_src=$(_find-skills-src "$1") || return 1
 
   local src_ns="${${skills_src:h}:t}"
-  local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills")
+  local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills" "$HOME/.claude/skills")
 
   for skill in "$skills_src"/*/; do
     skill="${skill%/}"   # strip trailing slash added by glob

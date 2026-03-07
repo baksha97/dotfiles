@@ -1,0 +1,15 @@
+# Generic Task Runner Justfile
+
+_runner := justfile_directory() / "scripts/runner.sh"
+
+# Run tasks sequentially
+default:
+    bash {{_runner}}
+
+# Run tasks in parallel
+parallel:
+    bash {{_runner}} --parallel
+
+# Run tasks with a live browser dashboard
+dashboard:
+    bash {{_runner}} --dashboard

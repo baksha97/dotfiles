@@ -1,0 +1,30 @@
+[project]
+name = "async-runner"
+version = "0.1.0"
+description = "A universal runner for asynchronous tasks and GitHub Workflows with real-time visualization."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+async-runner = "async_runner.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/async_runner"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-mock>=3.15.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

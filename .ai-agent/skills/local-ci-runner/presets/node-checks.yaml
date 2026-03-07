@@ -1,0 +1,14 @@
+name: "Node.js Local Checks"
+workflow: ".github/workflows/main.yml"
+tasks:
+  - id: install
+    name: "Install Deps"
+    command: "npm install"
+  - id: lint
+    name: "Linting"
+    workflow_step: "Run Lint"
+  - id: test
+    name: "Run Tests"
+    workflow_step: "Run Tests"
+    env:
+      NODE_ENV: "test"

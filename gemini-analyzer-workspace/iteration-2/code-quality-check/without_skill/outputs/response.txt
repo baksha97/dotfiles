@@ -1,0 +1,121 @@
+# Code Quality Analysis: Dotfiles Repository
+
+## Overall Assessment
+
+This is a well-structured personal dotfiles repository with good separation of concerns and clear documentation. The codebase demonstrates solid engineering practices for infrastructure/configuration management.
+
+## Maintainability Score: 7.5/10
+
+### Strengths
+
+**1. Clear Architecture & Organization**
+- Uses GNU Stow for symlink management — a mature, battle-tested approach
+- Logical directory structure: `meta/scripts/` for setup logic, `stow/` for config files
+- Single entry point (`main.sh`) with command routing
+- Profile-based configuration (personal/work) for environment-specific settings
+
+**2. Good Documentation**
+- Comprehensive `CLAUDE.md` with clear architecture explanation
+- Inline comments explain complex migrations (e.g., alacritty layout migration)
+- Usage examples in main.sh help text
+
+**3. Consistent Error Handling**
+- Universal use of `set -e` (and `set -eo pipefail` in alacritty-icon.sh)
+- Proper error messages with context (e.g., "Error: profile '$profile' not found")
+- Graceful fallbacks (e.g., headful vs headless detection for GUI apps)
+
+**4. Cross-Platform Support**
+- Clean OS detection in main.sh (macOS, Linux, Alpine)
+- Platform-specific scripts avoid unnecessary complexity
+- Architecture detection (x86_64 vs aarch64) for Linux binaries
+
+**5. Safe Operations**
+- Automatic backups before overwriting existing configs
+- Migration logic for old directory layouts
+- Hash checking to prevent redundant operations (alacritty-icon.sh)
+
+### Areas for Improvement
+
+**1. Shell Inconsistency (Minor Technical Debt)**
+- `setup-common.sh` and `backup.sh` use `#!/bin/zsh`
+- `main.sh`, `setup-linux.sh`, `alacritty-icon.sh` use `#!/bin/bash`
+- This inconsistency could cause subtle behavioral differences
+- **Recommendation**: Standardize on one shell (bash for portability, zsh for macOS native)
+
+**2. Code Duplication**
+- Multiple scripts repeat version fetching logic from GitHub releases:
+  ```bash
+  LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r .tag_name | sed 's/v//')
+  [[ -n "$LG_VERSION" ]] || { echo "Error: could not determine lazygit version" >&2; exit 1 }
+  ```
+- This pattern appears 6+ times in `setup-linux.sh`
+- **Recommendation**: Extract to a helper function
+
+**3. Hardcoded URLs and Versions**
+- Nerd Fonts version is hardcoded: `nerd_fonts_version="v3.3.0"`
+- External icon URL in alacritty-icon.sh could break
+- Multiple GitHub release URLs scattered throughout
+- **Recommendation**: Consider a versions/URLs config file or latest-tag resolution
+
+**4. Limited Testability**
+- No automated tests or CI validation
+- No dry-run mode for setup scripts
+- Difficult to verify changes without running on actual systems
+- **Recommendation**: Add shellcheck to CI, consider Docker-based testing
+
+**5. Profile Validation**
+- Profile validation is duplicated in both `setup-macos.sh` and `setup-linux.sh`:
+  ```bash
+  if [ ! -f "stow/git/profiles/$profile" ]; then
+    echo "Error: profile '$profile' not found in stow/git/profiles/"
+    exit 1
+  fi
+  ```
+- **Recommendation**: Move to shared validation in `setup-common.sh`
+
+**6. Sudo Handling**
+- The `$SUDO` variable logic in `setup-linux.sh` is good but could be more robust
+- Some commands hardcode `$SUDO` while others don't, creating inconsistency
+- **Recommendation**: Audit all commands that need elevation
+
+## Technical Debt Areas
+
+### Low Priority
+- **Shebang inconsistency** — functional but confusing
+- **Hardcoded version strings** — manageable for personal use
+- **Missing shellcheck annotations** — some complex bash constructs could benefit from disables
+
+### Medium Priority  
+- **No automated testing** — changes require manual verification
+- **Error handling in subshells** — some `curl | bash` patterns don't verify success well
+- **Backup retention** — no cleanup logic for old backups in `backup/` directory
+
+### High Priority
+- None identified — this is a well-maintained personal configuration repo
+
+## Security Considerations
+
+**Good Practices:**
+- Uses `curl -fsSL` consistently (fail, silent, location, show errors)
+- Validates file existence before operations
+- Proper GPG key handling for apt repositories
+- No hardcoded secrets or credentials
+
+**Potential Improvements:**
+- Downloads and executes scripts directly from the internet (standard practice but worth noting)
+- No checksum validation for downloaded binaries (except alacritty icon)
+- `curl | bash` pattern used for SDKMAN, zoxide, Docker, etc.
+
+## Recommendations Summary
+
+1. **Standardize on bash** for all setup scripts (better Linux compatibility)
+2. **Extract helper functions** for repeated patterns (version fetching, error handling)
+3. **Add shellcheck** to catch common bash/zsh issues
+4. **Consider a config file** for URLs and versions
+5. **Add basic CI** using GitHub Actions to validate shell syntax
+
+## Conclusion
+
+This is a **high-quality personal dotfiles repository** with thoughtful organization and good practices. The technical debt is minimal and appropriate for a personal tool. The main opportunities for improvement are around code consolidation and automated testing. The architecture is solid and should remain maintainable as the configuration grows.
+
+**Bottom line**: Well done. Minor polish would make it excellent, but it's already production-quality for personal use.

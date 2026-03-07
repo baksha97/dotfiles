@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "The baseline provides normal code analysis without the skill",
+      "passed": true,
+      "evidence": "Response provides standard dotfiles analysis mentioning GNU Stow, platform-specific scripts, and profile-based configuration"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved correctly."
+  }
+}

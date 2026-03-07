@@ -1,0 +1,122 @@
+{
+  "skill_name": "gemini-analyzer",
+  "iteration": 2,
+  "created_at": "2025-03-07T18:00:00Z",
+  "configurations": [
+    {
+      "name": "with_skill",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "architecture-review",
+          "pass_rate": 0.5,
+          "total_assertions": 2,
+          "passed_assertions": 1,
+          "tokens": 2847,
+          "time_seconds": 8.9
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "security-review",
+          "pass_rate": 0.5,
+          "total_assertions": 2,
+          "passed_assertions": 1,
+          "tokens": 3245,
+          "time_seconds": 9.5
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "code-quality-check",
+          "pass_rate": 0.5,
+          "total_assertions": 2,
+          "passed_assertions": 1,
+          "tokens": 3156,
+          "time_seconds": 9.2
+        },
+        {
+          "eval_id": 4,
+          "eval_name": "performance-analysis",
+          "pass_rate": 0.5,
+          "total_assertions": 2,
+          "passed_assertions": 1,
+          "tokens": 3876,
+          "time_seconds": 11.1
+        },
+        {
+          "eval_id": 5,
+          "eval_name": "baseline-no-trigger",
+          "pass_rate": 1.0,
+          "total_assertions": 2,
+          "passed_assertions": 2,
+          "tokens": 2987,
+          "time_seconds": 8.7
+        }
+      ]
+    },
+    {
+      "name": "without_skill",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "architecture-review",
+          "pass_rate": 1.0,
+          "total_assertions": 2,
+          "passed_assertions": 2,
+          "tokens": 4123,
+          "time_seconds": 11.8
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "security-review",
+          "pass_rate": 1.0,
+          "total_assertions": 1,
+          "passed_assertions": 1,
+          "tokens": 4356,
+          "time_seconds": 12.4
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "code-quality-check",
+          "pass_rate": 1.0,
+          "total_assertions": 1,
+          "passed_assertions": 1,
+          "tokens": 3567,
+          "time_seconds": 10.3
+        },
+        {
+          "eval_id": 4,
+          "eval_name": "performance-analysis",
+          "pass_rate": 1.0,
+          "total_assertions": 1,
+          "passed_assertions": 1,
+          "tokens": 3987,
+          "time_seconds": 11.4
+        },
+        {
+          "eval_id": 5,
+          "eval_name": "baseline-no-trigger",
+          "pass_rate": 1.0,
+          "total_assertions": 1,
+          "passed_assertions": 1,
+          "tokens": 2876,
+          "time_seconds": 8.4
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "with_skill": {
+      "mean_pass_rate": 0.6,
+      "mean_tokens": 3222.2,
+      "mean_time_seconds": 9.48
+    },
+    "without_skill": {
+      "mean_pass_rate": 1.0,
+      "mean_tokens": 3781.8,
+      "mean_time_seconds": 10.86
+    },
+    "delta_pass_rate": -0.4,
+    "delta_tokens": -559.6,
+    "delta_time_seconds": -1.38
+  }
+}

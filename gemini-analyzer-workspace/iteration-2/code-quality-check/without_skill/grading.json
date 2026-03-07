@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "The response does not use the gemini-analyzer skill",
+      "passed": true,
+      "evidence": "Response provides code quality analysis without mentioning Gemini"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved correctly."
+  }
+}

@@ -1,0 +1,206 @@
+# Security Review: Dotfiles Repository
+
+## Executive Summary
+
+This security review analyzed the dotfiles repository at `/Users/travis/Code/dotfiles/`. The repository contains shell scripts for system bootstrapping and configuration management across macOS and Linux platforms. **Overall risk level: LOW to MEDIUM** - while the repository contains several security considerations, most issues are related to common patterns in setup scripts rather than critical vulnerabilities.
+
+---
+
+## Identified Security Issues
+
+### 1. **HIGH: Arbitrary Script Execution from Remote Sources** 
+
+**Location:** `meta/scripts/setup-linux.sh` (multiple locations), `meta/scripts/setup-macos.sh`, `meta/scripts/setup-common.sh`
+
+**Issue:** The scripts download and execute code from remote URLs without cryptographic verification:
+
+```bash
+# setup-linux.sh:70
+curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+
+# setup-linux.sh:105
+curl -LsSf https://astral.sh/uv/install.sh | bash
+
+# setup-linux.sh:111
+curl -fsSL https://get.docker.com | bash
+
+# setup-linux.sh:129
+curl -fsSL https://tailscale.com/install.sh | bash
+
+# setup-linux.sh:135
+curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO bash -
+
+# setup-linux.sh:154
+curl -fsSL https://opencode.ai/install | bash
+
+# setup-linux.sh:160
+curl -fsSL https://claude.ai/install.sh | bash
+
+# setup-common.sh:9
+curl -s "https://get.sdkman.io" | bash
+```
+
+**Risk:** If any of these domains are compromised or experience DNS hijacking, malicious code could be executed with user privileges or root (via sudo).
+
+**Recommendation:** 
+- Pin to specific versions with checksum verification
+- Use package managers where available
+- Download scripts first, verify checksums, then execute
+
+---
+
+### 2. **MEDIUM: Unverified GitHub Release Downloads**
+
+**Location:** `meta/scripts/setup-linux.sh:58-64`, `76-82`, `88-92`, `119-123`, `185-190`
+
+**Issue:** Downloads binaries from GitHub releases without checksum verification:
+
+```bash
+LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r .tag_name)
+curl -fsSLo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/..."
+```
+
+**Risk:** GitHub accounts can be compromised, releases can be tampered with, or man-in-the-middle attacks could substitute malicious binaries.
+
+**Recommendation:**
+- Verify release checksums against published values
+- Consider using package repositories instead of direct downloads
+- Pin to specific known-good versions
+
+---
+
+### 3. **MEDIUM: npm Global Installation Without Lock Files**
+
+**Location:** `meta/scripts/setup-linux.sh:142-143`, `148-149`
+
+```bash
+$SUDO npm install -g vercel
+$SUDO npm install -g @google/gemini-cli
+```
+
+**Issue:** Installing npm packages globally without version pinning or integrity checks.
+
+**Risk:** Supply chain attacks through compromised npm packages or dependencies.
+
+**Recommendation:**
+- Pin to specific versions: `npm install -g vercel@<version>`
+- Consider using package managers instead of npm global installs
+
+---
+
+### 4. **LOW: Potential Path Injection in Stow Operations**
+
+**Location:** `meta/scripts/setup-common.sh:87-90`
+
+```bash
+stow -d stow zsh -t "$HOME" --adopt
+stow -d stow powerlevel10k -t "$HOME" --adopt
+stow -d stow tmux -t "$HOME" --adopt
+stow -d stow alacritty -t "$HOME" --adopt --no-folding
+```
+
+**Issue:** The `--adopt` flag moves existing files into the repository. If malicious files exist in target locations, they could be adopted into the dotfiles repo.
+
+**Risk:** Low - requires attacker to already have file system access.
+
+**Recommendation:** Review backup directory contents before committing changes.
+
+---
+
+### 5. **LOW: GitHub API Unauthenticated Requests**
+
+**Location:** `meta/scripts/setup-linux.sh:58`, `76`, `88`, `119`
+
+**Issue:** Using GitHub API without authentication:
+
+```bash
+LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r .tag_name)
+```
+
+**Risk:** Rate limiting (60 requests/hour for unauthenticated requests) could cause script failures. Not a security risk per se, but could impact availability.
+
+---
+
+### 6. **INFORMATIONAL: Homebrew Installation from Remote Script**
+
+**Location:** `meta/scripts/setup-macos.sh:19`
+
+```bash
+NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+**Issue:** Standard Homebrew installation method. While widely used, it follows the same pattern of executing remote scripts.
+
+**Note:** This is the official Homebrew installation method and is generally accepted, though still carries theoretical supply chain risk.
+
+---
+
+### 7. **LOW: Backup Directory Permissions Not Explicitly Set**
+
+**Location:** `meta/scripts/setup-common.sh:16-17`, `60-65`
+
+**Issue:** Backups of potentially sensitive config files (including git credentials) are created without explicit permission restrictions:
+
+```bash
+backup_dir="backup/$(date +%Y-%m-%d_%H-%M-%S)"
+mkdir -p "$backup_dir"
+cp -R "$target" "$backup_dir/"
+```
+
+**Risk:** If backup directory is created with world-readable permissions, sensitive data could be exposed.
+
+**Recommendation:** 
+```bash
+mkdir -p "$backup_dir"
+chmod 700 "$backup_dir"
+```
+
+---
+
+### 8. **LOW: Potential Information Disclosure in Error Messages**
+
+**Location:** Multiple locations
+
+**Issue:** Error messages may reveal system information or paths:
+
+```bash
+echo "Error: profile '$profile' not found in stow/git/profiles/"
+```
+
+**Risk:** Low - information disclosure could aid reconnaissance.
+
+---
+
+## Positive Security Observations
+
+1. **Use of `set -e`**: Scripts exit on errors, preventing partial execution
+2. **Quote Variables**: Generally good quoting practices to prevent word splitting
+3. **HTTP to HTTPS**: All curl commands use HTTPS (with `-fsSL` flags)
+4. **Input Validation**: Profile existence is checked before use
+5. **Architecture Detection**: Proper architecture detection for binary downloads
+6. **No Hardcoded Secrets**: No API keys, passwords, or tokens found in the repository
+
+---
+
+## Recommendations Summary
+
+### High Priority
+1. Add checksum verification for all downloaded binaries
+2. Pin specific versions for npm global packages
+
+### Medium Priority
+3. Add integrity checks for remote install scripts (download → verify → execute)
+4. Set restrictive permissions on backup directories
+
+### Low Priority
+5. Consider using package repositories instead of GitHub releases where possible
+6. Add GitHub token for API requests to avoid rate limiting
+7. Document the security considerations for users
+
+---
+
+## Conclusion
+
+The dotfiles repository follows generally good practices for a setup script collection. The primary security concerns stem from the inherent risks of downloading and executing code from remote sources - a common pattern in modern development workflows. The maintainers should consider implementing checksum verification and version pinning to mitigate supply chain risks.
+
+**Overall Assessment**: The repository is reasonably secure for its use case, with room for improvement in supply chain verification.

@@ -1,0 +1,363 @@
+# Security Review: Dotfiles Repository
+
+**Analyzed by:** Gemini Analyzer (Security-Focused Review)  
+**Date:** March 7, 2026  
+**Scope:** Complete codebase including shell scripts and Python automation tools  
+
+---
+
+## Executive Summary
+
+This security review identified **7 high-severity vulnerabilities** and **12 medium/low-severity issues** across the dotfiles repository. The primary concerns center around command injection vulnerabilities, insecure download patterns, and lack of input validation in shell and Python scripts.
+
+**Overall Risk Level:** MEDIUM-HIGH
+
+---
+
+## Critical Vulnerabilities (High Severity)
+
+### 1. Command Injection Vulnerabilities
+
+**Location:** Multiple files  
+**Risk:** Attackers can execute arbitrary commands through crafted input
+
+#### 1.1 navigator.py (Lines 62-63)
+```python
+safe_text = shlex.quote(text).replace(" ", "%s")
+run_adb_command(["shell", "input", "text", safe_text], self.serial)
+```
+**Issue:** After `shlex.quote()`, spaces are replaced with `%s`. This creates a shell injection vulnerability as the text is passed to the shell via `subprocess.run()` with `shell=False`, but the replacement pattern could be exploited with specially crafted input containing shell metacharacters.
+
+**Impact:** Arbitrary command execution on connected Android device
+
+#### 1.2 keyboard.py (Lines 48-49)
+Same pattern as navigator.py - unsafe text input handling.
+
+#### 1.3 log_monitor.py (Line 59)
+```python
+if args.grep:
+    full_cmd.extend(["|", "grep", args.grep])
+```
+**Issue:** User-provided grep pattern is appended directly to the command list, but then the entire command is passed to `subprocess.Popen()` which could interpret pipe characters unexpectedly depending on how the command is constructed.
+
+**Impact:** Command injection through grep patterns
+
+#### 1.4 app_launcher.py (Lines 27-30)
+```python
+cmd = ["shell", "am", "start", "-n", f"{package}/{activity}"]
+# ...
+cmd = ["shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1"]
+```
+**Issue:** Package names and activities are passed directly to shell commands without validation. Malicious package names like `com.example; rm -rf /` could execute arbitrary commands.
+
+**Impact:** Arbitrary command execution on device
+
+#### 1.5 build_and_test.py (Line 36)
+```python
+cmd = [gradlew, task]
+```
+**Issue:** User-provided Gradle task names are passed directly to subprocess without validation. Tasks like `assembleDebug; rm -rf ~` could be injected.
+
+**Impact:** Arbitrary command execution on host system
+
+---
+
+### 2. Path Traversal Vulnerabilities
+
+**Location:** Multiple files  
+**Risk:** Access to unauthorized files outside intended directories
+
+#### 2.1 emulator_manage.py (Lines 42-47)
+```python
+def boot_avd(avd_name):
+    emu = get_emulator_path()
+    subprocess.Popen([emu, "-avd", avd_name], ...)
+```
+**Issue:** AVD names are passed directly to emulator without sanitization. Names like `../../malicious` could access unintended directories.
+
+#### 2.2 app_launcher.py (Line 50)
+```python
+run_adb_command(["install", "-r", apk_path], self.serial)
+```
+**Issue:** APK paths are not validated, allowing installation from arbitrary locations.
+
+#### 2.3 setup Scripts (All variants)
+All setup scripts use profile names to construct file paths:
+```bash
+if [ ! -f "stow/git/profiles/$profile" ]; then
+```
+**Issue:** Profile names like `../../../etc/passwd` could be used for path traversal.
+
+**Files affected:**
+- `setup-linux.sh:8`
+- `setup-macos.sh:8`
+- `setup-alpine.sh:9`
+- `main.sh:36` (indirectly through profile parameter)
+
+---
+
+### 3. Insecure Download and Execution Patterns
+
+**Location:** Multiple setup scripts  
+**Risk:** Supply chain attacks, man-in-the-middle attacks
+
+#### 3.1 curl | bash Anti-Pattern
+Multiple instances of downloading and immediately executing remote scripts:
+
+| Script | Line | Command |
+|--------|------|---------|
+| `setup-common.sh` | 9 | `curl -s "https://get.sdkman.io" \| bash` |
+| `setup-linux.sh` | 70 | `curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh \| bash` |
+| `setup-linux.sh` | 99 | `curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \| bash` |
+| `setup-linux.sh` | 105 | `curl -LsSf https://astral.sh/uv/install.sh \| bash` |
+| `setup-linux.sh` | 111 | `curl -fsSL https://get.docker.com \| bash` |
+| `setup-linux.sh` | 129 | `curl -fsSL https://tailscale.com/install.sh \| bash` |
+| `setup-linux.sh` | 135 | `curl -fsSL https://deb.nodesource.com/setup_lts.x \| bash` |
+| `setup-linux.sh` | 154 | `curl -fsSL https://opencode.ai/install \| bash` |
+| `setup-linux.sh` | 160 | `curl -fsSL https://claude.ai/install.sh \| bash` |
+| `setup-macos.sh` | 19 | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
+
+**Issue:** These patterns:
+- Execute code before it can be verified
+- Are vulnerable to man-in-the-middle attacks if TLS is compromised
+- Have no checksum verification
+- Trust the remote server completely
+
+#### 3.2 Binary Downloads Without Verification
+
+**Location:** `setup-linux.sh` (multiple locations)
+
+GitHub releases are downloaded without GPG signature verification:
+- lazygit (lines 58-64)
+- fzf (lines 76-83)
+- yq (lines 88-92)
+- Docker Compose (lines 119-123)
+- Nerd Fonts (lines 185-186)
+
+**Risk:** If GitHub or the CDN is compromised, malicious binaries could be installed.
+
+---
+
+### 4. Hardcoded External URLs with Security Risks
+
+#### 4.1 alacritty-icon.sh (Line 11)
+```bash
+icon_url=https://s3.macosicons.com/macosicons/icons/UcDQMJkqVL/icnsFile_e80a1d3cbed491f9c073079d794c0f78_UcDQMJkqVL.icns
+```
+**Issue:** 
+- URL is not HTTPS-verified explicitly
+- No hash verification of downloaded icon
+- S3 bucket could be compromised or taken over
+- Icon files can contain executable code on macOS
+
+#### 4.2 Android Studio Download (setup-linux.sh:256)
+```bash
+AS_URL=$(curl -s "https://jb.gg/ide/index.xml" \
+  | grep -oP 'https://[^"]+android-studio[^"]+linux\.tar\.gz' | head -1)
+```
+**Issue:** Downloads Android Studio from parsed XML without verification.
+
+---
+
+### 5. Excessive Privilege Usage
+
+**Location:** Multiple scripts  
+**Risk:** Unauthorized system modifications, privilege escalation
+
+#### 5.1 setup-linux.sh - sudo Usage
+```bash
+$SUDO chsh -s "$(which zsh)" "$USER"  # Line 39
+```
+**Issue:** Changes user's default shell without explicit confirmation. Malicious zsh binaries could be substituted.
+
+#### 5.2 System-Wide Modifications
+Multiple scripts modify system-wide configurations:
+- `/etc/apt/keyrings/` (lines 45-50)
+- `/etc/apt/sources.list.d/` (lines 49-50)
+- `/usr/local/bin/` (multiple locations)
+- `/opt/` (line 260)
+
+**Issue:** No rollback mechanism if installation fails partway through.
+
+---
+
+### 6. Information Disclosure Risks
+
+#### 6.1 screen_mapper.py
+```python
+def dump_ui(self):
+    run_adb_command(["shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], self.serial)
+```
+**Issue:** Dumps complete UI hierarchy which may contain:
+- Sensitive user data visible on screen
+- Internal app structure information
+- API keys or tokens displayed in UI
+
+#### 6.2 log_monitor.py
+Captures all device logs without filtering PII:
+- No automatic PII redaction
+- Logs may contain passwords, tokens, personal data
+- Package-level filtering is optional, not default
+
+#### 6.3 Git Profile Information
+Git profiles contain real email addresses:
+- `stow/git/profiles/personal`: `baksha97@gmail.com`
+- `stow/git/profiles/work`: `alfayed.baksh@mlb.com`
+
+**Note:** This is expected behavior for git configs but should be noted for privacy.
+
+---
+
+## Medium/Low Severity Issues
+
+### 7. Missing Input Validation
+
+| File | Issue |
+|------|-------|
+| `gesture.py:69-74` | Direction parameter not validated before use |
+| `keyboard.py:34-38` | Keycode parsing allows arbitrary integers |
+| `common.py:103` | Screen size parsing lacks bounds checking |
+| `navigator.py:96` | Coordinate parsing assumes valid format |
+| `setup-alpine.sh:74-76` | Version parsing from GitHub without schema validation |
+
+### 8. Temporary File Security
+
+#### 8.1 screen_mapper.py (Line 20)
+```python
+self.temp_file = os.path.join(tempfile.gettempdir(), "window_dump.xml")
+```
+**Issue:**
+- Predictable filename allows symlink attacks
+- No explicit file permissions set
+- File persists after use (not cleaned up)
+
+#### 8.2 alacritty-icon.sh (Line 13)
+```bash
+tmp_icon="$(mktemp)"
+```
+**Issue:** No explicit cleanup if script fails mid-execution.
+
+### 9. Error Handling and Information Leakage
+
+#### 9.1 common.py (Lines 22-26)
+```python
+try:
+    subprocess.run(["adb", "--version"], ...)
+    return "adb"
+except (subprocess.CalledProcessError, FileNotFoundError):
+    pass
+```
+**Issue:** Silent failures may hide security issues.
+
+#### 9.2 navigator.py (Line 135)
+```python
+import time  # Imported but never used at module level
+time.sleep(0.5)  # Used here but conditional
+```
+**Issue:** Missing import in some code paths could cause failures.
+
+### 10. Insecure Defaults
+
+#### 10.1 Git Credential Storage
+`stow/git/.gitconfig` uses `osxkeychain` helper:
+```gitconfig
+helper = osxkeychain
+```
+**Note:** While generally secure, this stores credentials in macOS keychain which could be accessed if the system is compromised.
+
+#### 10.2 ADB Trust Model
+Android emulator scripts assume ADB is already authorized:
+- No verification of ADB server authenticity
+- No warning about unauthorized device connections
+
+---
+
+## Positive Security Findings
+
+1. **Use of `set -e`**: Most shell scripts use `set -e` to exit on errors
+2. **HTTPS by Default**: Most curl commands use HTTPS
+3. **Non-Interactive Brew**: `NONINTERACTIVE=1` prevents hanging
+4. **Architecture Validation**: Scripts validate architecture before downloading binaries
+5. **Backup Mechanism**: `setup-common.sh` backs up existing configs before modification
+6. **Git LFS**: Properly configured for handling large files securely
+
+---
+
+## Recommendations
+
+### Immediate Actions (Critical)
+
+1. **Sanitize all user inputs** before passing to subprocess/shell:
+   ```python
+   # Use allowlists for validation
+   VALID_PACKAGES = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')
+   if not VALID_PACKAGES.match(package):
+       raise ValueError("Invalid package name")
+   ```
+
+2. **Replace curl | bash patterns** with verified downloads:
+   ```bash
+   # Download first, verify, then execute
+   curl -fsSL "$url" -o /tmp/install.sh
+   sha256sum -c <<< "$expected_hash  /tmp/install.sh"
+   bash /tmp/install.sh
+   ```
+
+3. **Validate file paths** to prevent traversal:
+   ```python
+   import os
+   requested_path = os.path.abspath(os.path.join(base_dir, user_input))
+   if not requested_path.startswith(os.path.abspath(base_dir)):
+       raise ValueError("Path traversal detected")
+   ```
+
+### Short-term Actions (High Priority)
+
+4. **Add checksum verification** for all downloaded binaries
+5. **Implement proper temporary file handling** with cleanup
+6. **Add input validation for all CLI arguments**
+7. **Use parameterized queries** for shell commands where possible
+
+### Long-term Actions (Medium Priority)
+
+8. **Implement code signing** for any distributed scripts
+9. **Add security audit logging**
+10. **Create a security policy** for vulnerability disclosure
+11. **Consider using package managers** instead of curl | bash where possible
+
+---
+
+## Specific File-by-File Risk Assessment
+
+| File | Risk Level | Primary Concerns |
+|------|------------|------------------|
+| `navigator.py` | HIGH | Command injection in text input |
+| `keyboard.py` | HIGH | Same as navigator.py |
+| `log_monitor.py` | HIGH | Command injection in grep |
+| `app_launcher.py` | HIGH | Command injection in package/activity names |
+| `setup-linux.sh` | HIGH | Multiple curl \| bash, no verification |
+| `setup-macos.sh` | HIGH | Homebrew install script execution |
+| `setup-alpine.sh` | MEDIUM-HIGH | Similar download patterns |
+| `alacritty-icon.sh` | MEDIUM | Untrusted binary download |
+| `build_and_test.py` | MEDIUM | Task injection |
+| `emulator_manage.py` | MEDIUM | AVD name injection |
+| `screen_mapper.py` | LOW-MEDIUM | Temp file handling, data exposure |
+| `setup-common.sh` | LOW-MEDIUM | SDKMAN! curl \| bash |
+| `backup.sh` | LOW | Minimal risk |
+| `main.sh` | LOW | Entry point, minimal logic |
+
+---
+
+## Conclusion
+
+This dotfiles repository contains several serious security vulnerabilities that could allow arbitrary command execution, particularly in the Android automation scripts and setup routines. The primary attack vectors are:
+
+1. **Command injection** through unsanitized user input
+2. **Supply chain attacks** through unverified downloads
+3. **Path traversal** through unvalidated file paths
+
+**Recommendation:** Address the high-severity issues before using these scripts in production environments or on shared systems. Implement input validation, checksum verification, and secure temporary file handling as immediate priorities.
+
+---
+
+*This security review was conducted using static analysis of the codebase. Dynamic testing and penetration testing may reveal additional vulnerabilities.*

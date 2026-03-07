@@ -1,0 +1,207 @@
+# Code Structure Analysis: Dotfiles Repository
+
+## Overview
+This is a comprehensive dotfiles management system designed for cross-platform setup (macOS and Linux). It provides automated bootstrapping of development environments using GNU Stow for configuration management and platform-specific package installation.
+
+## Architecture
+
+### Core Design Philosophy
+- **Single Entrypoint**: All operations flow through `main.sh`
+- **GNU Stow**: Configuration files are symlinked from `stow/` directory to `$HOME`
+- **Profile-based**: Supports `personal` and `work` profiles for different git identities and package sets
+- **Cross-platform**: Auto-detects OS and runs appropriate setup scripts
+
+### Directory Structure
+
+```
+/Users/travis/Code/dotfiles/
+├── main.sh                    # Entrypoint script (56 lines)
+├── CLAUDE.md                  # Documentation for AI assistants
+├── meta/
+│   ├── scripts/               # Setup scripts
+│   │   ├── setup-macos.sh     # macOS bootstrap (34 lines)
+│   │   ├── setup-linux.sh     # Linux bootstrap (278 lines)
+│   │   ├── setup-common.sh    # Shared stow/git logic (140 lines)
+│   │   ├── setup-alpine.sh    # Alpine Linux support
+│   │   ├── backup.sh          # Homebrew bundle backup
+│   │   └── alacritty-icon.sh  # Icon replacement utility
+│   ├── homebrew/              # Brewfiles per profile
+│   ├── packages/              # Linux package lists
+│   └── .ai-agent/skills/      # AI agent skill definitions
+├── stow/                      # Stow packages (mirrors $HOME structure)
+│   ├── zsh/                   # Shell configuration
+│   ├── git/                   # Git configuration + profiles/
+│   ├── tmux/                  # Terminal multiplexer config
+│   ├── alacritty/             # Terminal emulator config
+│   ├── powerlevel10k/         # Prompt theme
+│   └── vscode/                # VS Code settings
+└── backup/                    # Timestamped config backups
+```
+
+## Key Components
+
+### 1. main.sh (Entrypoint)
+**Lines**: 56
+
+Handles command routing and OS detection:
+- Commands: `setup`, `brew backup`, `alacritty-icon`
+- OS Detection: macOS (`darwin`), Linux (`apt-get`), Alpine (`apk`)
+- Sources platform-specific scripts rather than executing them as subprocesses
+
+**Code Pattern**:
+```bash
+case "$command" in
+  setup)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      source "$DOTFILES_DIR/meta/scripts/setup-macos.sh" "$@"
+    elif command -v apt-get &>/dev/null; then
+      source "$DOTFILES_DIR/meta/scripts/setup-linux.sh" "$@"
+    # ...
+esac
+```
+
+### 2. Setup Scripts
+
+#### setup-macos.sh (34 lines)
+- Validates profile exists in `stow/git/profiles/`
+- Configures Finder to show hidden files
+- Installs Homebrew if missing
+- Handles Apple Silicon vs Intel Homebrew paths (`/opt/homebrew` vs `/usr/local`)
+- Runs `brew bundle` with profile-specific Brewfile
+- Sources `setup-common.sh`
+
+#### setup-linux.sh (278 lines)
+- Validates profile exists
+- Detects root vs user execution (sets `SUDO` variable)
+- Architecture detection (`x86_64`/`aarch64`)
+- Multi-stage installation:
+  1. **apt packages** from `meta/packages/linux.packages`
+  2. **CLI tools** via official installers (gh, lazygit, zoxide, fzf, yq, just, uv)
+  3. **Docker & Tailscale**
+  4. **Node.js ecosystem** (Node LTS, vercel, gemini-cli, opencode, claude)
+  5. **Nerd Fonts** (8 font families with version markers)
+  6. **GUI apps** (headful environment detection)
+     - VS Code, VS Code Insiders
+     - Chrome, Firefox, VLC
+     - Alacritty, Android Studio
+  7. **SDKMAN packages** (Gradle, Kotlin)
+
+#### setup-common.sh (140 lines)
+Core shared functionality:
+- **SDKMAN! installation**
+- **Cleanup**: Removes `.DS_Store` files before stowing
+- **Migration logic**: Handles old flat `alacritty/` layout migration
+- **Backup system**: 
+  - Backs up real files (not symlinks) before overwriting
+  - Timestamped backups in `backup/YYYY-MM-DD_HH-MM-SS/`
+- **Stow operations**:
+  - zsh, powerlevel10k, tmux, alacritty → `$HOME`
+  - git → `$HOME` (with profile selection)
+  - vscode → platform-specific VS Code User directory
+- **Git configuration**: Copies profile to `.gitconfig-profile`, stows git package
+- **GitHub CLI**: Sets up git-credential helper
+- **Agent Skills**: Symlinks skills to `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`
+
+### 3. Stow Packages
+
+Each package mirrors the target directory structure:
+
+| Package | Target | Contents |
+|---------|--------|----------|
+| `zsh` | `$HOME` | `.zshrc`, `.zshrc.d/` |
+| `powerlevel10k` | `$HOME` | `.p10k.zsh` |
+| `tmux` | `$HOME` | `.tmux.conf` |
+| `alacritty` | `$HOME` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` |
+| `git` | `$HOME` | `.gitconfig`, `.gitignore`, `.gitconfig-profile` (gitignored) |
+| `vscode` | Platform-specific | `settings.json`, `keybindings.json` |
+
+**Key Stow flags used**:
+- `--adopt`: Moves existing files into the repo before symlinking
+- `--no-folding`: Prevents directory folding (used for alacritty)
+
+### 4. Profile System
+
+Profiles control:
+1. **Git identity**: `stow/git/profiles/<name>` → copied to `.gitconfig-profile`
+2. **macOS packages**: `meta/homebrew/Brewfile.<profile>`
+3. **Linux**: Uses same package list regardless of profile
+
+Available profiles: `personal`, `work`
+
+## Notable Implementation Details
+
+### Error Handling
+- `set -e` used consistently across all scripts
+- Profile validation before execution
+- Architecture validation with fallback error
+
+### Safety Features
+1. **Backup system**: Real files backed up before removal
+2. **Migration support**: Handles layout changes (old alacritty/ → stow/alacritty/)
+3. **Idempotent installs**: Checks for existing installations before proceeding
+4. **Marker files**: Font installations tracked with `.installed-<font>-<version>` markers
+
+### Platform Abstractions
+- **Homebrew path detection**: Supports both Apple Silicon (`/opt/homebrew`) and Intel (`/usr/local`)
+- **VS Code path**: Platform-specific (`~/Library/Application Support/Code/User` vs `~/.config/Code/User`)
+- **Sudo handling**: Detects root execution to avoid unnecessary sudo calls
+
+### Linux CLI Tool Installation Pattern
+Most tools follow this pattern:
+```bash
+if ! command -v <tool> &>/dev/null; then
+  echo "Installing <tool>..."
+  # Download and install
+fi
+```
+
+Tools are installed via:
+- **apt repositories**: gh CLI, VS Code
+- **Direct binary downloads**: lazygit, fzf, yq (from GitHub releases)
+- **Install scripts**: zoxide, uv, Docker, Tailscale
+- **npm**: vercel, gemini-cli, opencode
+
+## AI Agent Skills
+
+Located in `meta/.ai-agent/skills/`, these provide domain-specific guidance:
+- `android-coroutines/`: Kotlin coroutines patterns
+- `android-gradle/`: Build system conventions and performance
+- `kotlin-concurrency/`: Concurrency patterns
+- `internal-comms/`: Writing work communications
+- `doc-coauthoring/`: Documentation workflow
+- `skill-creator/`: Skill development and evaluation
+- `android-emulator-skill/`: Testing automation scripts
+- `gemini-analyzer/`: Codebase analysis (this skill)
+
+Skills are symlinked to `~/.copilot/skills`, `~/.cursor/skills`, and `~/.agents/skills` during setup.
+
+## Summary Statistics
+
+- **Total shell scripts**: 7 main scripts
+- **Total lines of shell code**: ~520 lines
+- **Stow packages**: 6
+- **Platforms supported**: 3 (macOS, Linux/apt, Alpine)
+- **CLI tools installed** (Linux): 15+
+- **GUI apps** (Linux headful): 7
+
+## Strengths
+
+1. **Clean separation** of concerns between OS-specific and shared logic
+2. **Comprehensive backup** system prevents data loss
+3. **Migration support** for layout changes
+4. **Idempotent** - safe to run multiple times
+5. **Well-documented** with CLAUDE.md
+6. **Profile system** enables environment-specific configurations
+7. **AI skill integration** for enhanced developer experience
+
+## Potential Areas for Enhancement
+
+1. **Testing**: No automated tests for setup scripts
+2. **Error recovery**: Limited rollback capability if setup fails mid-way
+3. **Logging**: Could benefit from structured logging instead of echo statements
+4. **Configuration**: Some hardcoded values (font versions, package lists) could be externalized
+5. **Modularity**: Linux setup script is quite long (278 lines); could be split into smaller functions
+
+## Conclusion
+
+This is a mature, well-architected dotfiles system with excellent cross-platform support. The use of GNU Stow for configuration management is idiomatic and effective. The codebase demonstrates good shell scripting practices with proper error handling, safety mechanisms, and clear separation of concerns. The AI agent skills integration is a modern addition that enhances the developer experience.

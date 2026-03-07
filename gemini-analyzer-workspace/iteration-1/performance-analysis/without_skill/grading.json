@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "The response does not use the gemini-analyzer skill",
+      "passed": true,
+      "evidence": "Response provides performance analysis without mentioning Gemini or the 1M token context window"
+    },
+    {
+      "text": "The baseline identifies performance issues",
+      "passed": true,
+      "evidence": "Baseline identified 'Shell startup is slow (~500ms-1s)', 'Setup scripts make 5+ sequential GitHub API calls', 'apt-get update runs 5 times'"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved as expected."
+  }
+}

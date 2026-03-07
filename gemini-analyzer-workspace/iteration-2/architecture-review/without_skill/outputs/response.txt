@@ -1,0 +1,163 @@
+# Dotfiles Repository Architecture Review
+
+## Overview
+
+This is a cross-platform dotfiles management system designed for reproducible development environment setup across macOS and Linux (Debian/Ubuntu and Alpine). The architecture follows a **modular, profile-driven approach** using GNU Stow as the core configuration deployment mechanism.
+
+---
+
+## Core Architecture Patterns
+
+### 1. **Single Entry Point Pattern**
+
+The system uses a unified command interface via `main.sh`:
+- Acts as a dispatcher to OS-specific setup scripts
+- Supports multiple subcommands: `setup`, `brew backup`, `alacritty-icon`
+- Auto-detects OS (macOS via `OSTYPE`, Linux via package manager detection)
+
+```
+main.sh
+├── setup → setup-macos.sh | setup-linux.sh | setup-alpine.sh
+├── brew backup → backup.sh
+└── alacritty-icon → alacritty-icon.sh
+```
+
+### 2. **Profile-Driven Configuration**
+
+Profiles (`personal`, `work`) control environment-specific settings:
+- **Git identity**: Profile files in `stow/git/profiles/<name>` copied to `.gitconfig-profile`
+- **macOS packages**: Separate `Brewfile.<profile>` for Homebrew bundles
+- **Linux**: Uses single package list regardless of profile
+
+This enables the same repository to support different contexts (personal vs work machines) without branching.
+
+### 3. **GNU Stow-Based Deployment**
+
+The **symlink farm** pattern is the central architectural decision:
+- Each package in `stow/` mirrors the `$HOME` directory structure
+- `stow --adopt` moves existing files into the repo and replaces them with symlinks
+- Enables version-controlled configuration with transparent file system integration
+
+**Stow Packages:**
+| Package | Target | Purpose |
+|---------|--------|---------|
+| `zsh` | `$HOME` | Shell configuration with Zinit plugin manager |
+| `powerlevel10k` | `$HOME` | Prompt theming |
+| `tmux` | `$HOME` | Terminal multiplexer config |
+| `alacritty` | `$HOME` | Terminal emulator + device-specific configs |
+| `git` | `$HOME` | Global git config with profile includes |
+| `vscode` | Platform-specific | Editor settings and extensions |
+
+### 4. **Layered Setup Architecture**
+
+Setup logic is organized in three layers:
+
+1. **Entry Layer** (`main.sh`): OS detection and dispatch
+2. **Platform Layer** (`setup-macos.sh`, `setup-linux.sh`, `setup-alpine.sh`): OS-specific package installation
+3. **Common Layer** (`setup-common.sh`): Shared stow deployment and configuration
+
+```
+┌─────────────────────────────────────┐
+│           main.sh                   │  ← Entry point, OS detection
+├─────────────┬─────────────┬─────────┤
+│ setup-macos │ setup-linux │ setup-  │  ← Platform-specific packages
+│    .sh      │    .sh      │ alpine  │
+└─────────────┴──────┬──────┴─────────┘
+                     │
+            ┌────────▼────────┐
+            │ setup-common.sh │  ← Shared stow deployment
+            └─────────────────┘
+```
+
+### 5. **Migration-Aware Design**
+
+The system includes logic to handle repository evolution:
+- Detects and migrates old directory layouts (e.g., root `alacritty/` → `stow/alacritty/`)
+- Backs up existing configurations before overwriting
+- Cleans up stale symlinks from previous runs
+
+### 6. **Headful/Headless Detection**
+
+Linux setup intelligently detects GUI availability:
+- Installs GUI apps (VS Code, Chrome, Android Studio) only when `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_CURRENT_DESKTOP` is set
+- Enables use in containerized/CI environments without modification
+
+---
+
+## Key Design Decisions
+
+### **Package Manager Strategy**
+
+| OS | Primary | Strategy |
+|----|---------|----------|
+| macOS | Homebrew | Bundle files with per-profile Brewfiles |
+| Linux (apt) | apt + direct downloads | Core packages via apt, latest tools via GitHub releases |
+| Linux (Alpine) | apk | Alpine-specific setup script |
+
+### **Version Management**
+
+- **SDKMAN!**: Manages JVM toolchain (Gradle, Kotlin)
+- **brew bundle**: Pins macOS package versions via lockfiles
+- **Direct downloads**: Linux tools installed from GitHub releases with architecture detection
+
+### **Agent Skills Integration**
+
+Agent-specific configurations (Copilot CLI, Cursor IDE) are symlinked from a central location:
+- Source: `meta/.ai-agent/skills/`
+- Targets: `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`
+
+This enables AI agent capabilities to be version-controlled alongside dotfiles.
+
+---
+
+## Notable Patterns
+
+### **Defensive Programming**
+- `set -e` for fail-fast execution
+- Pre-flight checks for existing installations
+- Architecture detection for binary downloads (`amd64` vs `arm64`)
+- Root/non-root handling (Linux `SUDO` variable)
+
+### **Idempotency**
+- Marker files for font installation tracking
+- Checks before installation (`command -v`)
+- Safe cleanup of stale symlinks
+
+### **Configuration Composition**
+- Zsh uses a modular config directory (`.zshrc.d/`) sourced via glob
+- Git uses `[include]` to compose base config with profile-specific identity
+- This allows device-specific additions without modifying tracked files
+
+---
+
+## Anti-Patterns Avoided
+
+1. **No submodules**: All dependencies installed via package managers or direct downloads
+2. **No hardcoded paths**: Uses `$HOME`, `$DOTFILES_DIR` variables throughout
+3. **No OS checks scattered**: Centralized in `main.sh`, then delegated
+4. **No secrets in repo**: Git profiles are gitignored, copied at setup time
+
+---
+
+## Extension Points
+
+To add a new stow package:
+1. Create `stow/<tool>/` with mirrored `$HOME` structure
+2. Add `stow -d stow <tool> -t "$HOME" --adopt` to `setup-common.sh`
+3. Document in CLAUDE.md
+
+To add a new profile:
+1. Create `stow/git/profiles/<name>` with git identity
+2. Create `meta/homebrew/Brewfile.<name>` (macOS only)
+
+---
+
+## Summary
+
+This dotfiles system demonstrates mature **infrastructure-as-code** principles applied to personal development environments. The architecture prioritizes:
+- **Reproducibility**: Same setup across machines and OSes
+- **Flexibility**: Profile-driven customization
+- **Maintainability**: Clear separation of concerns, comprehensive documentation
+- **Evolvability**: Migration paths for breaking changes
+
+The use of GNU Stow as the backbone is a solid choice that avoids the complexity of custom symlink management while remaining transparent to the user.

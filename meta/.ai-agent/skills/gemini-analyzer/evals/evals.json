@@ -1,0 +1,35 @@
+{
+  "skill_name": "gemini-analyzer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Ask gemini to analyze this codebase and tell me about the overall architecture and design patterns",
+      "expected_output": "The skill should acknowledge the request, mention delegating to Gemini's 1M token context window, and attempt to use the MCP server to analyze the codebase",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Can you ask Gemini to do a security review of my project? I want to know about any vulnerabilities",
+      "expected_output": "The skill should trigger on 'ask Gemini', acknowledge the security review request, and delegate to Gemini for security-focused analysis",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I'm wondering about code quality in this repo. ASK GEMINI what it thinks about maintainability and technical debt",
+      "expected_output": "The skill should trigger even with uppercase 'ASK GEMINI', acknowledge the code quality question, and delegate to Gemini for analysis",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Please ask gemini to look at this codebase and identify any performance bottlenecks or optimization opportunities",
+      "expected_output": "The skill should trigger on 'ask gemini', acknowledge the performance analysis request, and attempt to use Gemini for the analysis",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Hey can you analyze this code for me? I want to understand the structure better",
+      "expected_output": "Without the 'ask gemini' trigger phrase, this should NOT activate the gemini-analyzer skill (baseline test)",
+      "files": []
+    }
+  ]
+}

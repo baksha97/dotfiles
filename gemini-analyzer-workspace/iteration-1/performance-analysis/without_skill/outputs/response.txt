@@ -1,0 +1,354 @@
+# Performance Analysis: Dotfiles Repository
+
+This analysis examines the dotfiles repository for performance bottlenecks and optimization opportunities. The codebase is a well-structured system configuration management tool using GNU Stow for symlink management.
+
+## Executive Summary
+
+The dotfiles repository is generally well-architected with good separation of concerns. However, several performance optimization opportunities exist, particularly in shell startup time, network-dependent operations, and redundant computations.
+
+---
+
+## Critical Performance Issues
+
+### 1. Shell Startup Time (High Impact)
+
+**Location:** `stow/zsh/.zshrc` + `.zshrc.d/*.zsh`
+
+**Issue:** Multiple blocking operations occur during shell initialization:
+
+- **NVM loading** (`nvm.zsh:2-3`): Loads nvm.sh on EVERY shell startup, which is notoriously slow (200-500ms)
+- **Zinit plugin loading** (`zinit.zsh`): Clones zinit repo on first run, then loads plugins
+- **SDKMAN sourcing** (`.zshrc:14`): Adds ~100-200ms to startup
+- **fzf/zoxide evals** (`integrations.zsh`): Each `eval "$(cmd)"` adds ~20-50ms
+
+**Current startup breakdown (estimated):**
+- Powerlevel10k instant prompt: ~5ms (fast)
+- Zinit initialization: ~100-200ms
+- Plugin loading: ~50-100ms
+- NVM: ~200-500ms
+- SDKMAN: ~100-200ms
+- Other integrations: ~50ms
+- **Total: 500ms-1s+**
+
+**Recommendation:**
+```zsh
+# Lazy-load NVM only when needed
+nvm() {
+  unset -f nvm
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm "$@"
+}
+
+# Lazy-load SDKMAN
+sdk() {
+  unset -f sdk
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+  sdk "$@"
+}
+```
+
+---
+
+### 2. Network-Dependent Operations Without Caching (High Impact)
+
+**Location:** `meta/scripts/setup-linux.sh`
+
+**Issue:** Multiple sequential network calls to GitHub API without any caching:
+
+- Line 58: `curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest"`
+- Line 76: `curl -s "https://api.github.com/repos/junegunn/fzf/releases/latest"`
+- Line 88: `curl -s "https://api.github.com/repos/mikefarah/yq/releases/latest"`
+- Line 119: `curl -s "https://api.github.com/repos/docker/compose/releases/latest"`
+- Line 256: `curl -s "https://jb.gg/ide/index.xml"`
+
+**Problems:**
+1. No rate limiting protection (GitHub API has 60 req/hour for unauthenticated)
+2. No version caching - downloads latest every time
+3. Sequential execution blocks setup progress
+4. No retry logic for transient failures
+
+**Recommendation:**
+```bash
+# Cache version checks for 24 hours
+get_cached_version() {
+  local tool="$1"
+  local api_url="$2"
+  local cache_file="/tmp/${tool}_version_cache"
+  local cache_max_age=86400  # 24 hours
+  
+  if [[ -f "$cache_file" && $(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file"))) -lt $cache_max_age ]]; then
+    cat "$cache_file"
+  else
+    local version=$(curl -fsSL "$api_url" 2>/dev/null | jq -r .tag_name)
+    echo "$version" > "$cache_file"
+    echo "$version"
+  fi
+}
+```
+
+---
+
+### 3. Redundant Package Manager Updates (Medium Impact)
+
+**Location:** `meta/scripts/setup-linux.sh:32, 51, 207, 220, 249`
+
+**Issue:** `apt-get update` is called multiple times:
+- Line 32: Initial update
+- Line 51: After adding gh CLI repo
+- Line 207: Before VS Code install
+- Line 220: Before VS Code Insiders install  
+- Line 249: Before Alacritty install
+
+Each `apt-get update` takes 5-15 seconds depending on network and mirrors.
+
+**Current wasted time:** ~20-60 seconds per setup run
+
+**Recommendation:** Consolidate all repository additions at the start, then single update:
+```bash
+# Add all repos first
+setup_all_repositories() {
+  # gh CLI repo
+  # VS Code repo  
+  # Alacritty PPA
+}
+
+# Single update
+$SUDO apt-get update -qq
+
+# Install everything
+```
+
+---
+
+### 4. Font Installation Inefficiency (Medium Impact)
+
+**Location:** `meta/scripts/setup-linux.sh:163-194`
+
+**Issue:** The Nerd Fonts installation loop downloads each font sequentially:
+
+```bash
+for font in "${nerd_fonts[@]}"; do
+  curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/..."
+done
+```
+
+With 8 fonts and ~5MB each, this takes 40-60 seconds on a slow connection.
+
+**Recommendation:** Parallel downloads with proper error handling:
+```bash
+download_font() {
+  local font="$1"
+  local marker="$2"
+  curl -fsSL "..." | tar -xJ -C "$font_dir" && touch "$marker"
+}
+
+export -f download_font
+printf '%s\n' "${nerd_fonts[@]}" | xargs -P 4 -I {} bash -c 'download_font "$@"' _ {}
+```
+
+---
+
+### 5. Git Worktree Function Performance (Low-Medium Impact)
+
+**Location:** `stow/zsh/.zshrc.d/utils.zsh:6-36`
+
+**Issue:** The `gct()` function performs multiple sequential git operations:
+
+1. `git fetch origin "$branch"` - network call
+2. `git show-ref --verify` - local check
+3. `git worktree add` - disk operation
+4. Potentially another `git fetch origin main` - redundant network call
+
+**Problems:**
+- No timeout on fetch operations
+- No progress indication during long operations
+- `basename -s .git` is called every time instead of caching
+- Could use `git worktree list` to check existence before fetching
+
+**Recommendation:**
+```bash
+gct() {
+  [[ -n "$1" ]] || { echo "Usage: gct <branch-name>" >&2; return 1; }
+  local branch="$1"
+  
+  # Cache repo name
+  local repo_name="${REPO_NAME:-$(basename -s .git "$(git remote get-url origin)")}"
+  export REPO_NAME="$repo_name"
+  
+  # Check if worktree already exists locally
+  if git worktree list | grep -q "${branch}$"; then
+    echo "Worktree for $branch already exists"
+    return 0
+  fi
+  
+  # Rest of logic with fetch timeout
+  if timeout 30 git fetch origin "$branch" 2>/dev/null; then
+    # ...
+  fi
+}
+```
+
+---
+
+### 6. Zinit Compinit Without Cache Optimization (Low Impact)
+
+**Location:** `stow/zsh/.zshrc.d/zinit.zsh:27`
+
+**Issue:** `compinit` is called on every shell startup without using the zsh completion dump:
+
+```zsh
+autoload -Uz compinit && compinit
+```
+
+This rebuilds the completion database every time (~50-100ms).
+
+**Recommendation:**
+```zsh
+# Use completion dump for faster startup
+autoload -Uz compinit
+if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
+  compinit
+else
+  compinit -C
+fi
+```
+
+---
+
+### 7. Stow Operations Without Validation (Low Impact)
+
+**Location:** `meta/scripts/setup-common.sh:87-91`
+
+**Issue:** Multiple stow commands are run sequentially without checking if targets are already correctly symlinked:
+
+```bash
+stow -d stow zsh -t "$HOME" --adopt
+stow -d stow powerlevel10k -t "$HOME" --adopt
+stow -d stow tmux -t "$HOME" --adopt
+stow -d stow alacritty -t "$HOME" --adopt --no-folding
+```
+
+Each stow call scans the filesystem. If packages are already properly linked, this is wasted work.
+
+**Recommendation:** Add idempotency check:
+```bash
+stow_package() {
+  local pkg="$1"
+  shift
+  local target="${2:-$HOME}"
+  
+  # Check if already properly stowed
+  if stow -d stow -t "$target" -c "$pkg" 2>/dev/null | grep -q "^$pkg:"; then
+    echo "  $pkg already stowed, skipping"
+    return 0
+  fi
+  
+  stow -d stow -t "$target" "$@" "$pkg"
+}
+```
+
+---
+
+### 8. Missing Error Recovery in Setup Scripts (Medium Impact)
+
+**Location:** Various locations in `setup-linux.sh`
+
+**Issue:** The script uses `set -e` but many network operations can fail transiently. There's no retry logic for:
+- Package downloads
+- GitHub API calls
+- apt operations
+
+**Example:** If line 58's GitHub API call fails due to rate limiting, the entire setup aborts.
+
+**Recommendation:** Add retry wrapper:
+```bash
+retry() {
+  local n=1
+  local max=3
+  local delay=5
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        echo "Command failed. Attempt $n/$max:"
+        sleep $delay
+      else
+        echo "The command has failed after $n attempts."
+        return 1
+      fi
+    }
+  done
+}
+
+# Usage
+retry curl -fsSL "..."
+```
+
+---
+
+## Minor Optimizations
+
+### 9. `.DS_Store` Cleanup on Every Setup
+
+**Location:** `meta/scripts/setup-common.sh:14`
+
+```bash
+find . -name .DS_Store -delete
+```
+
+This scans the entire repo on every setup. Could be limited to stow directories only.
+
+### 10. Backup Directory Creation Redundancy
+
+**Location:** `meta/scripts/setup-common.sh:57-66`
+
+The backup directory check `if [ "$backed_up" = false ]` is repeated 3+ times. Could be extracted to a function.
+
+---
+
+## Recommendations Summary
+
+| Priority | Issue | Impact | Effort |
+|----------|-------|--------|--------|
+| P0 | Lazy-load NVM and SDKMAN | High | Low |
+| P0 | Cache GitHub API calls | High | Medium |
+| P1 | Consolidate apt updates | Medium | Low |
+| P1 | Parallel font downloads | Medium | Low |
+| P1 | Add retry logic | Medium | Medium |
+| P2 | Optimize compinit | Low | Low |
+| P2 | Idempotent stow checks | Low | Low |
+| P2 | Cache git repo metadata | Low | Low |
+
+---
+
+## Estimated Performance Gains
+
+**Shell startup time:**
+- Current: 500ms-1s+
+- Optimized: 100-200ms
+- **Improvement: 60-80% faster**
+
+**Linux setup time:**
+- Current: 5-10 minutes (depending on network)
+- Optimized: 3-5 minutes
+- **Improvement: 40-50% faster**
+
+**Daily impact:**
+- Opening 20 terminal windows/day: Save 8-16 seconds/day
+- Over a year: Save ~1-2 hours of waiting
+
+---
+
+## Code Quality Notes
+
+The codebase demonstrates good practices:
+- Clear separation of platform-specific logic (macOS/Linux/Alpine)
+- Proper use of `set -e` for error handling
+- Good documentation via comments
+- Profile-based configuration system
+- Proper backup of existing configs before overwriting
+
+Areas for improvement:
+- Add `set -u` to catch undefined variables
+- Consider using `set -o pipefail` for better pipeline error handling
+- Add timing/profiling flags for debugging slow operations

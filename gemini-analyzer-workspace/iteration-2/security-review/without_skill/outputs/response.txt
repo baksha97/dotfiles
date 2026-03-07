@@ -1,0 +1,441 @@
+# Security Review: Dotfiles Project
+
+## Executive Summary
+
+This security review analyzed the dotfiles repository for potential vulnerabilities and security risks. The project is a system bootstrap and configuration management tool that automates the installation of development tools, shells, editors, and system preferences across macOS, Linux (apt-based), and Alpine Linux platforms.
+
+**Overall Security Grade: C+**
+
+The project demonstrates good practices in several areas (set -e for error handling, backup mechanisms, non-destructive migrations) but has significant security concerns primarily around supply chain risks from remote script execution.
+
+---
+
+## Critical Issues (Immediate Action Required)
+
+### 1. Remote Code Execution via curl-to-bash (CRITICAL)
+
+**Risk Level:** HIGH  
+**Impact:** Complete system compromise  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (lines 70, 98, 105, 111, 129, 135, 148, 154, 160)
+- `meta/scripts/setup-macos.sh` (line 19)
+- `meta/scripts/setup-alpine.sh` (lines 90, 110)
+
+**Description:**
+The setup scripts download and execute remote shell scripts without any verification of integrity or authenticity. This pattern, commonly called "curl-to-bash" or "curl-to-sh", is dangerous because:
+
+1. **Compromised servers:** If any of the remote servers are compromised, malicious code will be executed on the user's system
+2. **Man-in-the-middle attacks:** Without certificate pinning, attackers can intercept HTTPS connections
+3. **No rollback capability:** Once executed, the damage is done
+4. **Supply chain attacks:** Even legitimate servers could serve malicious content if their infrastructure is breached
+
+**Instances Found:**
+```bash
+# setup-linux.sh:70
+curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+
+# setup-linux.sh:105
+curl -LsSf https://astral.sh/uv/install.sh | bash
+
+# setup-linux.sh:111
+curl -fsSL https://get.docker.com | bash
+
+# setup-linux.sh:129
+curl -fsSL https://tailscale.com/install.sh | bash
+
+# setup-linux.sh:154
+curl -fsSL https://opencode.ai/install | bash
+
+# setup-linux.sh:160
+curl -fsSL https://claude.ai/install.sh | bash
+
+# setup-macos.sh:19
+NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+**Recommended Fix:**
+```bash
+# Instead of direct execution, download, verify, then execute
+INSTALLER="/tmp/installer-$(date +%s).sh"
+curl -fsSL "https://example.com/install.sh" -o "$INSTALLER"
+
+# Verify checksum (example with SHA256)
+EXPECTED_SHA="abc123..."
+ACTUAL_SHA=$(sha256sum "$INSTALLER" | cut -d' ' -f1)
+if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
+    echo "ERROR: Checksum verification failed"
+    rm -f "$INSTALLER"
+    exit 1
+fi
+
+# Only then execute
+bash "$INSTALLER"
+rm -f "$INSTALLER"
+```
+
+---
+
+### 2. Downloaded Binaries Without Integrity Verification (CRITICAL)
+
+**Risk Level:** HIGH  
+**Impact:** Execution of compromised or malicious binaries  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (lines 60-64, 78-82, 90-92, 98-99, 121-123)
+- `meta/scripts/setup-alpine.sh` (lines 77-81, 99-101)
+
+**Description:**
+Binary releases downloaded from GitHub are not verified against checksums or signatures. An attacker who compromises a GitHub account or performs a man-in-the-middle attack can replace legitimate binaries with malicious versions.
+
+**Vulnerable Code Pattern:**
+```bash
+LG_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r .tag_name | sed 's/v//')
+curl -fsSLo /tmp/lazygit.tar.gz \
+  "https://github.com/jesseduffield/lazygit/releases/download/v${LG_VERSION}/lazygit_${LG_VERSION}_Linux_${ARCH_MUSL}.tar.gz"
+tar -xf /tmp/lazygit.tar.gz -C /tmp lazygit
+$SUDO install /tmp/lazygit /usr/local/bin/lazygit
+```
+
+**Recommended Fix:**
+1. Download checksums file from the release
+2. Verify binary against published checksums
+3. Consider using cosign or similar for signature verification where available
+
+---
+
+## High Severity Issues
+
+### 3. Insecure Temporary File Handling
+
+**Risk Level:** HIGH  
+**Impact:** Local privilege escalation, symlink attacks  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (lines 60-64, 78-82, 229-230)
+- `meta/scripts/setup-alpine.sh` (lines 77-81)
+
+**Description:**
+Temporary files are created in `/tmp` without secure permissions or unique names, making them vulnerable to:
+- Symlink attacks where an attacker creates a symlink to overwrite arbitrary files
+- Race conditions where an attacker swaps the file contents between download and execution
+
+**Vulnerable Pattern:**
+```bash
+curl -fsSLo /tmp/lazygit.tar.gz "..."  # Predictable path
+tar -xf /tmp/lazygit.tar.gz -C /tmp lazygit  # No validation of tar contents
+$SUDO install /tmp/lazygit /usr/local/bin/lazygit
+```
+
+**Recommended Fix:**
+```bash
+# Use mktemp for secure temporary files
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+# Download to temporary directory
+curl -fsSLo "$TMPDIR/lazygit.tar.gz" "..."
+
+# Verify contents before extraction
+tar -tzf "$TMPDIR/lazygit.tar.gz" | head -5
+```
+
+---
+
+### 4. No Certificate Pinning or Verification
+
+**Risk Level:** MEDIUM-HIGH  
+**Impact:** Man-in-the-middle attacks, compromised downloads  
+**Affected Files:** All setup scripts using curl
+
+**Description:**
+While curl uses HTTPS, there's no certificate pinning or additional TLS verification. In scenarios with:
+- Corporate SSL inspection proxies
+- Compromised Certificate Authorities
+- DNS poisoning attacks
+
+The connection could be intercepted without detection.
+
+**Recommended Fix:**
+```bash
+# Use --cacert with pinned certificates for critical downloads
+# Or implement secondary verification (checksums, signatures)
+```
+
+---
+
+## Medium Severity Issues
+
+### 5. GitHub API Rate Limiting Exposure
+
+**Risk Level:** MEDIUM  
+**Impact:** Setup script failures, potential information disclosure  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (lines 58, 76, 88, 119)
+- `meta/scripts/setup-alpine.sh` (lines 74, 96)
+
+**Description:**
+Scripts make unauthenticated requests to the GitHub API to fetch latest release versions. GitHub limits unauthenticated requests to 60 per hour per IP. In corporate environments or CI/CD pipelines, this limit can be easily exceeded, causing setup failures.
+
+Additionally, these requests can leak:
+- IP addresses
+- Usage patterns
+- Which tools are being installed
+
+**Recommended Fix:**
+```bash
+# Support GITHUB_TOKEN for authenticated requests
+if [ -n "$GITHUB_TOKEN" ]; then
+    AUTH_HEADER="-H 'Authorization: token $GITHUB_TOKEN'"
+fi
+LG_VERSION=$(curl -s $AUTH_HEADER "https://api.github.com/repos/...")
+```
+
+---
+
+### 6. Sudo Escalation Without Validation
+
+**Risk Level:** MEDIUM  
+**Impact:** Unauthorized privilege escalation  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (multiple locations)
+- `meta/scripts/setup-alpine.sh` (multiple locations)
+
+**Description:**
+Scripts use sudo extensively without verifying:
+- That the user has sudo privileges
+- That sudo authentication is recent (no password prompt during long operations)
+- What commands will be executed with elevated privileges
+
+This could lead to:
+- Scripts hanging waiting for password input in automated environments
+- Partial execution leaving system in inconsistent state
+- Privilege escalation if scripts are run with unexpected permissions
+
+**Recommended Fix:**
+```bash
+# Check sudo access early
+if ! sudo -n true 2>/dev/null; then
+    echo "WARNING: This script requires sudo access. You may be prompted for a password."
+fi
+
+# Or require explicit confirmation
+read -p "This script will use sudo to install system packages. Continue? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 1
+fi
+```
+
+---
+
+### 7. Lack of Input Validation on Profile Names
+
+**Risk Level:** MEDIUM  
+**Impact:** Path traversal, arbitrary file access  
+**Affected Files:**
+- `meta/scripts/setup-macos.sh` (lines 6-11)
+- `meta/scripts/setup-linux.sh` (lines 6-11)
+- `meta/scripts/setup-alpine.sh` (lines 7-12)
+
+**Description:**
+Profile names are used directly in file paths without sanitization:
+```bash
+profile="${1:-personal}"
+if [ ! -f "stow/git/profiles/$profile" ]; then
+```
+
+An attacker could potentially pass a profile name like `../../../etc/passwd` to access arbitrary files, though the impact is limited in this specific case because the path is only checked for existence.
+
+**Recommended Fix:**
+```bash
+# Validate profile name against allowed pattern
+if [[ ! "$profile" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "Error: Invalid profile name. Use only alphanumeric characters, hyphens, and underscores."
+    exit 1
+fi
+```
+
+---
+
+### 8. Information Disclosure Through User-Agent
+
+**Risk Level:** LOW-MEDIUM  
+**Impact:** System fingerprinting, targeted attacks  
+**Affected Files:** All setup scripts using curl
+
+**Description:**
+curl sends detailed User-Agent headers by default, revealing:
+- Operating system version
+- curl version
+- Architecture information
+
+This information could be used by attackers to:
+- Target known vulnerabilities in specific OS versions
+- Fingerprint systems for reconnaissance
+- Customize attacks based on detected environment
+
+**Recommended Fix:**
+```bash
+# Use generic or minimal User-Agent
+curl -A "dotfiles-installer" ...
+# Or disable entirely where appropriate
+curl -H "User-Agent:" ...
+```
+
+---
+
+## Low Severity Issues
+
+### 9. Backup Directory Permissions
+
+**Risk Level:** LOW  
+**Impact:** Information disclosure  
+**Affected Files:**
+- `meta/scripts/setup-common.sh` (lines 16-85)
+
+**Description:**
+Backup directories are created without restrictive permissions:
+```bash
+mkdir -p "$backup_dir"
+```
+
+These backups may contain sensitive configuration data, SSH keys, or other private information with default permissions (usually 755).
+
+**Recommended Fix:**
+```bash
+mkdir -p -m 700 "$backup_dir"
+# Or after creation:
+chmod 700 "$backup_dir"
+```
+
+---
+
+### 10. Error Message Information Leakage
+
+**Risk Level:** LOW  
+**Impact:** Information disclosure  
+**Affected Files:** All setup scripts
+
+**Description:**
+Error messages often include full paths that reveal system structure:
+```bash
+echo "Error: profile '$profile' not found in stow/git/profiles/"
+```
+
+While low risk for local development dotfiles, this could expose:
+- Repository structure
+- Username (in paths)
+- System organization
+
+**Recommended Fix:**
+Use relative or sanitized paths in error messages.
+
+---
+
+### 11. Unverified External Dependencies
+
+**Risk Level:** LOW  
+**Impact:** Supply chain compromise  
+**Affected Files:**
+- `meta/scripts/setup-linux.sh` (lines 44-53, 200-223)
+- `meta/homebrew/Brewfile.*` (multiple taps)
+
+**Description:**
+The project adds third-party APT repositories and Homebrew taps without verifying keys or maintaining a list of trusted sources. If any of these external entities are compromised, malicious packages could be installed.
+
+**Recommended Fix:**
+1. Maintain a list of trusted sources with pinned keys
+2. Verify GPG keys before adding repositories
+3. Document all external dependencies
+4. Consider vendoring critical tools
+
+---
+
+## Security Best Practices Observed
+
+### Positive Security Measures
+
+1. **Error Handling:** All scripts use `set -e` to exit immediately on errors, preventing partial or incomplete setups that could leave the system in an inconsistent state.
+
+2. **Backup Mechanism:** The setup-common.sh script backs up existing configurations before overwriting, preventing data loss and allowing rollback.
+
+3. **Architecture Validation:** Scripts validate architecture before downloading platform-specific binaries, preventing execution of incompatible code.
+
+4. **Non-Interactive Mode:** Homebrew installation uses `NONINTERACTIVE=1` to prevent hanging in automated environments.
+
+5. **Idempotency:** Many installation checks prevent redundant operations:
+   ```bash
+   if ! command -v gh &>/dev/null; then
+       # install
+   fi
+   ```
+
+6. **Migration Safety:** The old alacritty layout migration preserves existing configs and doesn't destroy user data.
+
+7. **Cleanup:** Temporary files are generally cleaned up after use, though some patterns could be improved.
+
+---
+
+## Recommendations Summary
+
+### Immediate Actions (Critical Priority)
+1. Implement checksum verification for all downloaded binaries
+2. Stop using curl-to-bash patterns; download to temporary files first
+3. Add integrity verification for all external install scripts
+4. Use mktemp for all temporary file operations
+
+### Short-term Actions (High Priority)
+1. Support GITHUB_TOKEN environment variable for API authentication
+2. Add input validation for all user-provided paths and names
+3. Implement certificate pinning for critical downloads
+4. Set restrictive permissions on backup directories
+
+### Long-term Actions (Medium Priority)
+1. Maintain a vendor directory with verified versions of critical tools
+2. Implement automated checksum updates via CI/CD
+3. Add signature verification where available (cosign, GPG)
+4. Document all external dependencies and their security posture
+5. Consider using package managers (apt, brew) instead of manual binary downloads where possible
+
+---
+
+## Attack Scenarios
+
+### Scenario 1: Supply Chain Compromise
+An attacker compromises the GitHub account of a tool maintainer (e.g., lazygit). They upload a malicious release that includes a backdoored binary. When a user runs the setup script, the malicious binary is downloaded and installed with root privileges via sudo.
+
+**Impact:** Complete system compromise, data exfiltration, persistent backdoor.
+
+### Scenario 2: Man-in-the-Middle Attack
+An attacker on the same network (e.g., public WiFi) performs a DNS poisoning attack or ARP spoofing to intercept HTTPS connections to install script URLs. They serve a modified version that includes malware.
+
+**Impact:** Immediate code execution with user privileges, potential privilege escalation.
+
+### Scenario 3: Temporary File Race Condition
+An attacker creates symlinks in /tmp pointing to critical system files (e.g., /etc/passwd, /etc/sudoers). When the setup script downloads to these predictable paths, it overwrites the target files.
+
+**Impact:** Privilege escalation, system compromise, denial of service.
+
+### Scenario 4: Corporate Environment Information Leakage
+In a corporate environment with many developers, unauthenticated GitHub API requests hit the rate limit (60/hour/IP) quickly. This causes setup failures and reveals internal IP ranges and installation patterns to GitHub.
+
+**Impact:** Setup failures, information disclosure, potential for targeted attacks based on tech stack.
+
+---
+
+## Conclusion
+
+While the dotfiles project provides convenient automation for development environment setup, it prioritizes convenience over security in several critical areas. The most concerning issues are the curl-to-bash patterns and lack of integrity verification for downloaded binaries, which expose users to supply chain attacks.
+
+The recommended approach is to implement a verification layer that:
+1. Pins known-good versions of all tools
+2. Verifies checksums for all downloads
+3. Uses package managers where possible instead of manual downloads
+4. Implements secure temporary file handling
+
+These changes would significantly improve the security posture while maintaining the convenience that makes this project valuable.
+
+**Risk Assessment:**
+- **Individual developers:** MEDIUM-HIGH risk due to direct exposure to supply chain attacks
+- **Corporate environments:** HIGH risk due to scalability issues and information disclosure
+- **CI/CD pipelines:** HIGH risk due to automation and potential for undetected compromises
+
+**Overall Recommendation:** Use with caution in isolated/development environments only. Implement the recommended fixes before using in production or sensitive environments.

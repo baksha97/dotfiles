@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "The response does not use the gemini-analyzer skill",
+      "passed": true,
+      "evidence": "Response provides analysis without mentioning Gemini or the 1M token context window - it's a regular codebase analysis"
+    },
+    {
+      "text": "The baseline provides comparable analysis quality",
+      "passed": true,
+      "evidence": "Baseline identified architectural patterns: 'Single Entry Point Pattern', 'Profile-Driven Configuration', 'GNU Stow-Based Deployment'"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved as expected."
+  }
+}

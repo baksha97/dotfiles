@@ -1,0 +1,119 @@
+I'll analyze this codebase using Gemini's 1M token context window.
+
+## Security Review: Dotfiles Repository
+
+**Analysis complete!** Full codebase scanned: shell scripts, configuration files, and package manifests.
+
+---
+
+## Security Findings Summary
+
+### HIGH PRIORITY: Remote Code Execution Risk
+
+**Issue: Multiple `curl | bash` patterns throughout setup scripts**
+
+This is the primary security concern. The following scripts download and execute remote code without cryptographic verification:
+
+**setup-macos.sh:**
+- Line 19: `curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash`
+
+**setup-linux.sh:**
+- Line 70: `curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash`
+- Line 105: `curl -LsSf https://astral.sh/uv/install.sh | bash`
+- Line 111: `curl -fsSL https://get.docker.com | bash`
+- Line 129: `curl -fsSL https://tailscale.com/install.sh | bash`
+- Line 135: `curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -`
+- Line 154: `curl -fsSL https://opencode.ai/install | bash`
+- Line 160: `curl -fsSL https://claude.ai/install.sh | bash`
+
+**setup-common.sh:**
+- Line 9: `curl -s "https://get.sdkman.io" | bash`
+
+**setup-alpine.sh:**
+- Line 90: `curl -sSf https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash`
+- Line 110: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+**Risk:** If any of these domains are compromised or suffer from supply chain attacks, malicious code could be executed with user privileges.
+
+**Recommendations:**
+1. Download scripts to temporary files first, verify checksums/signatures, then execute
+2. Pin specific versions of install scripts rather than using "latest"
+3. Consider vendoring critical installation scripts in the repository
+
+---
+
+### MEDIUM PRIORITY: Sudo Privilege Escalation
+
+**Issue: Passwordless sudo assumptions in setup-linux.sh**
+
+Lines 14-18 handle root detection but don't account for systems requiring password entry for sudo:
+```bash
+if [ "$EUID" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+```
+
+**Risk:** Scripts may fail on systems with sudo password requirements or hang waiting for input.
+
+**Recommendation:** Add documentation warning that setup may require password entry, or use `sudo -n` to check if passwordless sudo is available before proceeding.
+
+---
+
+### MEDIUM PRIORITY: GitHub API Rate Limiting (setup-linux.sh)
+
+**Issue: Unauthenticated GitHub API calls for version checking**
+
+Multiple instances of unauthenticated calls to api.github.com:
+- Lines 58, 76, 88, 119, 256 for lazygit, fzf, yq, Docker Compose, Android Studio
+
+**Risk:** Rate limiting (60 requests/hour for unauthenticated requests) could cause installation failures.
+
+**Recommendation:** 
+- Add fallback error handling if API calls fail
+- Consider using `gh api` when available (authenticated)
+- Cache version information
+
+---
+
+### LOW PRIORITY: Icon Download Without Verification (alacritty-icon.sh)
+
+**Issue: Downloads icon from S3 without checksum verification**
+
+Line 11-15: Downloads from `macosicons.com` S3 bucket
+
+**Risk:** If the S3 bucket or domain is compromised, a malicious icon could be installed.
+
+**Recommendation:** 
+- Include expected SHA256 hash in script and verify download
+- Consider vendoring the icon file in the repository
+
+---
+
+### POSITIVE SECURITY FINDINGS
+
+1. **Good sudo handling**: Root detection prevents unnecessary sudo prompts
+2. **Secure temporary files**: Uses `mktemp` in alacritty-icon.sh
+3. **Backup mechanism**: Existing configs are backed up before overwriting
+4. **No hardcoded secrets**: No API keys, passwords, or tokens found in codebase
+5. **Git credential security**: Properly uses GitHub CLI and macOS keychain helpers
+6. **Set -e usage**: Scripts use `set -e` for error handling
+
+---
+
+## Overall Security Assessment
+
+**Risk Level: MEDIUM**
+
+The primary concern is the extensive use of `curl | bash` patterns for installing external tools. While this is common in dotfiles setups, it represents a supply chain attack vector. The scripts are otherwise well-structured with proper error handling and backup mechanisms.
+
+**Recommended Actions:**
+1. Implement checksum verification for critical downloads
+2. Document the security trade-offs in README
+3. Consider pinning specific versions instead of "latest"
+4. Add CI testing to detect if external install scripts change behavior
+
+---
+
+Full report location: This analysis covers the entire dotfiles repository including all shell scripts, configuration files, and package manifests.

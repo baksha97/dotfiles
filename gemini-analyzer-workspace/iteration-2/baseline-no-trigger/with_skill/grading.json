@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "The skill does NOT trigger when 'ask gemini' phrase is absent",
+      "passed": true,
+      "evidence": "Response provides normal dotfiles analysis without mentioning Gemini, MCP servers, or the gemini-analyzer skill. Correctly did NOT trigger."
+    },
+    {
+      "text": "The response provides standard code analysis",
+      "passed": true,
+      "evidence": "Response analyzed the dotfiles structure: 'Single entrypoint (main.sh)', 'Profile-based configuration', 'Platform-specific setup scripts'"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "EXCELLENT: The skill correctly did NOT trigger when the 'ask gemini' phrase was absent. This is the expected behavior and shows the fix worked."
+  }
+}

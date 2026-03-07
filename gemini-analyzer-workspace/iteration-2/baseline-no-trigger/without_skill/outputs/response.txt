@@ -1,0 +1,192 @@
+# Dotfiles Repository Structure Analysis
+
+## Overview
+
+This is a **personal dotfiles repository** that manages a complete development environment bootstrap using **GNU Stow**. It provides a single-entrypoint setup (`main.sh`) that configures shell, terminal, editors, git, and AI agent skills across macOS and Linux systems.
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        main.sh (Entrypoint)                      │
+│              Routes to platform-specific setup scripts           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────────┐
+│ setup-macos.sh│    │ setup-linux.sh│    │  setup-common.sh  │
+│ (Homebrew)    │    │ (apt + inst.) │    │ (stow, git, skills)│
+└───────────────┘    └───────────────┘    └───────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    GNU Stow Symlink Management                   │
+│           stow/<package>/ → symlinks to $HOME                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Directory Structure
+
+```
+dotfiles/
+├── main.sh                      # Single CLI entrypoint
+├── README.md                    # Comprehensive documentation
+├── CLAUDE.md                    # Agent context for Claude Code
+├── .gitignore                   # Git exclusions
+├── stow/                        # Stow packages (symlink targets)
+│   ├── alacritty/              # Terminal emulator config
+│   ├── git/                    # Git configuration + profiles
+│   ├── powerlevel10k/          # Prompt theme
+│   ├── tmux/                   # Terminal multiplexer
+│   ├── vscode/                 # VS Code/Cursor settings
+│   └── zsh/                    # Shell configuration
+├── meta/                        # Support files (not stowed)
+│   ├── .ai-agent/skills/       # AI agent skill definitions
+│   ├── homebrew/               # Brewfile definitions (macOS)
+│   ├── packages/               # Linux package lists
+│   ├── scripts/                # Setup implementation scripts
+│   └── terminal/               # Terminal.app profiles
+└── gemini-analyzer-workspace/  # Analysis workspace (meta)
+```
+
+## Key Components
+
+### 1. Entrypoint (`main.sh`)
+- **56 lines**, clean command dispatch
+- Supports: `setup [profile]`, `brew backup [profile]`, `alacritty-icon`
+- Auto-detects OS (macOS → Linux → Alpine)
+- Sources platform scripts rather than executing them
+
+### 2. Platform Setup Scripts (`meta/scripts/`)
+
+| Script | Lines | Purpose |
+|--------|-------|---------|
+| `setup-macos.sh` | ~50 | Homebrew install + bundle |
+| `setup-linux.sh` | ~400 | apt + official installers |
+| `setup-alpine.sh` | ~200 | apk-based setup |
+| `setup-common.sh` | ~150 | Shared: stow, git, SDKMAN!, skills |
+| `backup.sh` | ~15 | Brewfile dump |
+| `alacritty-icon.sh` | ~30 | Icon replacement utility |
+
+### 3. Stow Packages (`stow/`)
+
+GNU Stow manages configs by creating symlinks from `$HOME` into the repo:
+
+| Package | Target | Contents |
+|---------|--------|----------|
+| `zsh` | `$HOME` | `.zshrc`, `.zshrc.d/` |
+| `powerlevel10k` | `$HOME` | `.p10k.zsh` |
+| `tmux` | `$HOME` | `.tmux.conf` |
+| `alacritty` | `$HOME` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` |
+| `git` | `$HOME` | `.gitconfig`, `.gitignore`, `profiles/` |
+| `vscode` | Platform-specific | `settings.json`, `keybindings.json` |
+
+**Key Stow Features:**
+- Uses `--adopt` flag: moves existing configs into repo before symlinking
+- Modular: each directory mirrors `$HOME` structure internally
+- VS Code path varies by platform (macOS: `~/Library/Application Support/Code/User`)
+
+### 4. Profile System
+
+Profiles control **git identity** and **macOS Homebrew packages**:
+
+```
+stow/git/profiles/
+├── personal          # Name/email for personal projects
+└── work              # Name/email for work projects
+
+meta/homebrew/
+├── Brewfile.personal # GUI apps + personal tools
+└── Brewfile.work     # Work-specific packages
+```
+
+Usage: `./main.sh setup [personal|work]`
+
+### 5. AI Agent Skills (`meta/.ai-agent/skills/`)
+
+Specialized knowledge packages for AI coding assistants:
+
+| Skill | Purpose |
+|-------|---------|
+| `android-coroutines` | Kotlin Coroutines patterns |
+| `android-emulator-skill` | Build/test/emulator automation |
+| `android-gradle` | Convention plugins, version catalogs |
+| `kotlin-concurrency` | Coroutine review, thread safety |
+| `doc-coauthoring` | Documentation workflow |
+| `internal-comms` | Writing assistance |
+| `gemini-analyzer` | Codebase analysis via Gemini API |
+| `skill-creator` | Skill development & evaluation |
+
+Skills are symlinked to:
+- `~/.copilot/skills`
+- `~/.cursor/skills`  
+- `~/.agents/skills`
+
+## Technology Stack
+
+### Shell Environment
+- **Zsh** with **Zinit** plugin manager
+- **Powerlevel10k** prompt theme
+- **fzf** + **zoxide** for navigation
+- Custom worktree functions (`gct`, `grmt`)
+
+### Terminal
+- **Alacritty** GPU-accelerated terminal
+- **tmux** with TPM plugin manager
+- **JetBrains Mono Nerd Font**
+
+### Editors
+- **VS Code** / **Cursor** with Vim bindings
+- Prettier, Copilot, Docker extensions
+
+### Development Tools
+- **SDKMAN!** for JVM SDKs (Gradle, Kotlin)
+- **Docker** + **Docker Compose**
+- **Git** with LFS
+
+## Design Patterns
+
+1. **Single Entrypoint**: All operations through `main.sh`
+2. **GNU Stow Symlink Management**: Version-controlled configs via symlinks
+3. **Profile-based Configuration**: Separate identities/packages per context
+4. **Platform Abstraction**: Shared common.sh + OS-specific scripts
+5. **Modular Stow Packages**: Each tool is self-contained
+6. **AI-Native**: Includes specialized skills for AI coding assistants
+
+## Workflow
+
+```bash
+# Clone and setup
+git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+./main.sh setup work     # or 'personal'
+
+# Backup current state
+./main.sh brew backup work
+
+# Customize configs (they're symlinks)
+vim ~/.zshrc             # edits stow/zsh/.zshrc
+git diff                 # see changes
+git commit -am "Update zsh config"
+```
+
+## Notable Features
+
+- **Cross-platform**: macOS (Homebrew) + Linux (apt + scripts)
+- **Headless support**: Linux detects GUI availability
+- **Adopt existing configs**: `--adopt` preserves user's existing setup
+- **AI agent integration**: Skills are first-class citizens
+- **Comprehensive docs**: README + CLAUDE.md for agents
+- **Profile-aware**: Work/personal separation built-in
+
+## Summary
+
+This is a **well-architected, production-ready dotfiles repository** that goes beyond simple config management. It demonstrates excellent practices:
+- Clean separation of concerns
+- Platform abstraction
+- Documentation-first approach
+- AI-native design (skills, agent context)
+- Version control best practices (adopt flag, symlinks)
+
+The codebase is **~2,500 lines** of bash across setup scripts, plus extensive markdown documentation and AI skill definitions.

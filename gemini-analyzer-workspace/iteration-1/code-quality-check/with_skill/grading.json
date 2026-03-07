@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "The response acknowledges using Gemini's 1M token context window",
+      "passed": false,
+      "evidence": "Response starts with 'Analysis complete!' but the summary doesn't show explicit mention of Gemini's 1M token window"
+    },
+    {
+      "text": "The response provides a code quality grade or rating",
+      "passed": true,
+      "evidence": "Response states 'Overall Grade: B+' and '7.2/10' rating"
+    },
+    {
+      "text": "The analysis identifies specific code quality issues",
+      "passed": true,
+      "evidence": "Identified specific issues: 'Shell compatibility - mapfile is bash 4.0+ only', 'Inconsistent shebangs', 'No automated testing', 'curl | bash patterns without verification'"
+    },
+    {
+      "text": "The output includes both strengths and weaknesses",
+      "passed": true,
+      "evidence": "Response includes 'Critical Issues', 'Technical Debt Areas', and 'Strengths' sections"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "The response acknowledges using Gemini's 1M token context window",
+        "reason": "The summary provided doesn't show the explicit Gemini acknowledgment that the skill requires. Need to verify if this is in the full response file."
+      }
+    ],
+    "overall": "Skill provided detailed code quality analysis with grades and specific findings."
+  }
+}

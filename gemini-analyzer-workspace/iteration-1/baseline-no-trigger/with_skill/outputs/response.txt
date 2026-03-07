@@ -1,0 +1,87 @@
+# Code Structure Analysis: gemini-analyzer Skill
+
+## Overview
+This is an AI agent skill designed to integrate with Claude Code (claude.ai/code) and delegate codebase analysis tasks to Google Gemini's API. It leverages Gemini's 1M token context window for comprehensive analysis.
+
+## Directory Structure
+
+```
+meta/.ai-agent/skills/gemini-analyzer/
+├── SKILL.md              # Main skill definition and behavior instructions
+└── evals/
+    └── evals.json        # Evaluation test cases for the skill
+```
+
+## Key Components
+
+### 1. SKILL.md (Main Definition File)
+**Location:** `/Users/travis/Code/dotfiles/meta/.ai-agent/skills/gemini-analyzer/SKILL.md`
+
+This YAML frontmatter file defines:
+- **Name:** `gemini-analyzer`
+- **Trigger:** Case-insensitive phrase "ask gemini"
+- **Model:** Sonnet
+- **Color:** Green (for UI theming)
+
+**Core Workflow (lines 12-26):**
+1. Acknowledge request mentioning 1M token context
+2. Execute MCP server calls:
+   - `gemini_scanAndPlan` - Scan project and prepare analysis
+   - `gemini_analyzeCodebase` - Perform comprehensive analysis
+3. Process results from auto-generated file (`gemini-analysis-YYYYMMDD-HHmmss.md`)
+4. Present structured findings covering:
+   - Architecture & Design patterns
+   - Critical Issues
+   - Security Considerations
+   - Code Quality metrics
+   - Recommendations
+
+### 2. Evaluation Framework (evals/evals.json)
+**Location:** `/Users/travis/Code/dotfiles/meta/.ai-agent/skills/gemini-analyzer/evals/evals.json`
+
+Contains 5 test cases:
+- **Tests 1-4:** Positive trigger cases (various "ask gemini" phrasings)
+- **Test 5:** Negative/baseline test (no trigger phrase - your current request)
+
+## Architecture Patterns
+
+1. **Trigger-Based Activation:** Uses phrase matching ("ask gemini") rather than automatic invocation
+2. **MCP Server Integration:** Delegates to external Gemini analyzer via Model Context Protocol
+3. **Two-Phase Analysis:** Scan/plan first, then analyze
+4. **Structured Output:** Enforces consistent response format with clear sections
+5. **Error Handling:** Graceful degradation with troubleshooting guidance
+
+## Dependencies
+
+**External:**
+- gemini-analyzer MCP server (must be configured via `claude mcp add`)
+- Google Gemini API access
+- File system read permissions for analysis output
+
+**Integration Points:**
+- Claude Code agent system
+- Stow-based deployment to `~/.copilot/skills` and `~/.cursor/skills`
+
+## Design Strengths
+
+1. **Clear Separation of Concerns:** Trigger detection → Delegation → Result synthesis
+2. **Comprehensive Coverage:** Addresses architecture, security, quality, and performance
+3. **User-Friendly:** Structured responses with actionable insights
+4. **Evaluation-Driven:** Includes test suite for validation
+
+## Potential Improvements
+
+1. **No Actual Implementation Code:** Only contains instructions/skill definition - actual Gemini integration is in separate MCP server
+2. **Limited Error Recovery:** Basic error handling without retry logic
+3. **Static Evaluation:** Tests don't include actual code analysis scenarios
+4. **Missing Configuration:** No config file for customizing analysis parameters
+
+## Files Summary
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| SKILL.md | 92 | Skill behavior and workflow definition |
+| evals/evals.json | 35 | Test cases for skill validation |
+| **Total** | **127** | |
+
+This skill acts as a bridge/interface layer, with the heavy lifting (Gemini API calls, analysis logic) happening in the external MCP server it invokes.

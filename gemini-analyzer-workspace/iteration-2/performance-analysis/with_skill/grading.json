@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "The response acknowledges using Gemini's 1M token context window",
+      "passed": false,
+      "evidence": "Response starts with 'Analysis complete!' without the mandatory Gemini acknowledgment"
+    },
+    {
+      "text": "The analysis identifies specific performance bottlenecks",
+      "passed": true,
+      "evidence": "Identified specific issues: 'Sequential Network Operations in setup-linux.sh', 'Multiple apt-get update calls', 'Sequential font downloads'"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "The response acknowledges using Gemini's 1M token context window",
+        "reason": "Missing mandatory acknowledgment phrase."
+      }
+    ],
+    "overall": "Detailed performance analysis but missing mandatory acknowledgment."
+  }
+}

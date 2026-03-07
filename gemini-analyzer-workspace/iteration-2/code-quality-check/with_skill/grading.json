@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "text": "The response acknowledges using Gemini's 1M token context window",
+      "passed": false,
+      "evidence": "Response starts with 'Analysis complete!' but does not include the mandatory Gemini acknowledgment"
+    },
+    {
+      "text": "The response provides a code quality grade or rating",
+      "passed": true,
+      "evidence": "Response states 'Overall Score: 9/10'"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "The response acknowledges using Gemini's 1M token context window",
+        "reason": "Missing the mandatory acknowledgment phrase at the start of the response."
+      }
+    ],
+    "overall": "Good analysis quality but missing mandatory acknowledgment."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "The response does not use the gemini-analyzer skill",
+      "passed": true,
+      "evidence": "Response provides security analysis without mentioning Gemini or the 1M token context window"
+    },
+    {
+      "text": "The baseline provides security findings",
+      "passed": true,
+      "evidence": "Baseline identified '7 instances of arbitrary script execution', 'GitHub release downloads without checksum verification'"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved as expected."
+  }
+}

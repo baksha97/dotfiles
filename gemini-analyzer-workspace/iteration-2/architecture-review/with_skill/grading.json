@@ -1,0 +1,28 @@
+{
+  "expectations": [
+    {
+      "text": "The response acknowledges using Gemini's 1M token context window",
+      "passed": false,
+      "evidence": "Response correctly identified that Gemini MCP server is not available and offered alternatives, but did not begin with mandatory acknowledgment phrase"
+    },
+    {
+      "text": "The response handles missing MCP server gracefully",
+      "passed": true,
+      "evidence": "Response clearly stated 'I don't have access to the Gemini MCP server required by the gemini-analyzer skill' and provided helpful alternatives"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "The skill correctly identified it cannot fulfill the request due to missing MCP server, but should still start with the mandatory acknowledgment before explaining the limitation."
+      }
+    ],
+    "overall": "Good error handling but missing mandatory acknowledgment. The skill is working as designed by not proceeding without MCP access."
+  }
+}

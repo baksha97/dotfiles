@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "architecture-review",
+  "prompt": "Ask gemini to analyze this codebase and tell me about the overall architecture and design patterns",
+  "assertions": []
+}

@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "code-quality-check",
+  "prompt": "I'm wondering about code quality in this repo. ASK GEMINI what it thinks about maintainability and technical debt",
+  "assertions": []
+}

@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "The response does not use the gemini-analyzer skill",
+      "passed": true,
+      "evidence": "Response states 'I've completed the code quality analysis without using the gemini-analyzer skill'"
+    },
+    {
+      "text": "The baseline provides comparable quality rating",
+      "passed": true,
+      "evidence": "Baseline gave rating of 7.2/10, which is comparable to the skill's B+ grade"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline behaved correctly and provided similar quality assessment."
+  }
+}

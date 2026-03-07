@@ -1,0 +1,6 @@
+{
+  "eval_id": 5,
+  "eval_name": "baseline-no-trigger",
+  "prompt": "Hey can you analyze this code for me? I want to understand the structure better",
+  "assertions": []
+}

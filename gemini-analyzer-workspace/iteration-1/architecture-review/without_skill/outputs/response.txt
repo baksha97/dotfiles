@@ -1,0 +1,318 @@
+# Dotfiles Repository - Architecture and Design Patterns Analysis
+
+## Executive Summary
+
+This is a sophisticated **cross-platform dotfiles management system** designed for automated developer environment bootstrapping. The architecture follows a **modular, profile-driven design** with GNU Stow as the core symlink mechanism, supporting both macOS (via Homebrew) and Linux (via apt + custom installers).
+
+---
+
+## Overall Architecture
+
+### 1. Single Entrypoint Pattern
+
+The repository follows a **command dispatcher pattern** with `main.sh` as the sole entrypoint:
+
+```
+main.sh
+├── setup [profile]        → Platform-specific bootstrap
+├── brew backup [profile]  → Homebrew state management
+└── alacritty-icon         → Icon replacement utility
+```
+
+**Design Philosophy**: One command to bootstrap an entire machine, with OS auto-detection (`$OSTYPE`, `apt-get`, `apk` checks).
+
+### 2. Three-Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: Entrypoint (main.sh)                              │
+│  - Command parsing and dispatching                          │
+│  - OS detection and routing                                 │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│  Layer 2: Platform Scripts (setup-macos.sh, setup-linux.sh) │
+│  - Package installation (Homebrew/apt)                      │
+│  - Architecture detection (amd64/arm64)                     │
+│  - Tool-specific installers (official scripts)              │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│  Layer 3: Common Setup (setup-common.sh)                    │
+│  - Stow package management                                  │
+│  - Git profile configuration                                │
+│  - Agent skills symlinking                                  │
+│  - SDKMAN! initialization                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Core Design Patterns
+
+### 1. **GNU Stow Package Pattern**
+
+The central organizational pattern uses GNU Stow for symlink management:
+
+```
+stow/
+├── zsh/           → ~/.zshrc, ~/.zshrc.d/
+├── tmux/          → ~/.tmux.conf
+├── git/           → ~/.gitconfig, ~/.gitignore
+├── alacritty/     → ~/.config/alacritty/
+├── vscode/        → Platform-specific VS Code User/
+└── powerlevel10k/ → ~/.p10k.zsh
+```
+
+**Key Implementation Details**:
+- `--adopt` flag moves pre-existing files into the repo before symlinking
+- `--no-folding` for alacritty prevents entire `.config` from becoming a symlink
+- VS Code target is platform-aware (macOS: `~/Library/Application Support/Code/User`, Linux: `~/.config/Code/User`)
+
+### 2. **Profile-Driven Configuration**
+
+**Concept**: Separate environments (personal vs work) with different tool sets and identities.
+
+```
+stow/git/profiles/
+├── personal       # Name/email for personal projects
+└── work           # Name/email for work projects
+```
+
+**Profile Effects**:
+1. **Git Identity**: Copied to `stow/git/.gitconfig-profile` (gitignored), included via `[include]` in `.gitconfig`
+2. **macOS Packages**: Different `Brewfile.<profile>` selections (meta/homebrew/Brewfile.personal vs Brewfile.work)
+3. **Linux**: Single package list regardless of profile
+
+### 3. **Modular Shell Configuration**
+
+The zsh configuration uses a **split configuration pattern**:
+
+```
+.zshrc                          # Entrypoint: sources ~/.zshrc.d/*.zsh
+.zshrc.d/
+├── 00-path.zsh                 # PATH modifications (loads first)
+├── zinit.zsh                   # Plugin manager setup
+├── integrations.zsh            # Tool integrations (fzf, zoxide)
+├── keybindings.zsh             # Custom key bindings
+├── aliases.zsh                 # Shell aliases
+├── completion.zsh              # Completion settings
+├── history.zsh                 # History configuration
+├── utils.zsh                   # Custom functions (gct, grmt)
+├── nvm.zsh                     # Node version manager
+├── opencode.zsh                # opencode CLI integration
+└── homebrew.zsh                # Homebrew shellenv
+```
+
+**Benefits**:
+- Individual files can be edited without touching main config
+- Load order control via numeric prefixes
+- Easy to add/remove functionality
+
+### 4. **Agent Skills Architecture**
+
+A **multi-tool skill distribution system** for AI coding agents:
+
+```
+meta/.ai-agent/skills/
+├── android-coroutines/SKILL.md
+├── android-emulator-skill/SKILL.md
+├── android-gradle/SKILL.md
+├── kotlin-concurrency/SKILL.md
+├── gemini-analyzer/SKILL.md
+├── doc-coauthoring/SKILL.md
+├── internal-comms/SKILL.md
+└── skill-creator/SKILL.md
+```
+
+**Distribution Strategy**: Skills are symlinked to multiple discovery paths:
+- `~/.copilot/skills` (Copilot CLI)
+- `~/.cursor/skills` (Cursor IDE)
+- `~/.agents/skills` (Common agent path)
+
+**Pattern**: Each skill is a self-contained `SKILL.md` file with domain-specific instructions.
+
+---
+
+## Platform Abstraction Patterns
+
+### 1. **Conditional OS Logic**
+
+Scripts use runtime OS detection rather than separate repositories:
+
+```bash
+# main.sh
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  source "$DOTFILES_DIR/meta/scripts/setup-macos.sh" "$@"
+elif command -v apt-get &>/dev/null; then
+  source "$DOTFILES_DIR/meta/scripts/setup-linux.sh" "$@"
+elif command -v apk &>/dev/null; then
+  source "$DOTFILES_DIR/meta/scripts/setup-alpine.sh" "$@"
+fi
+```
+
+### 2. **Architecture-Aware Installers (Linux)**
+
+The Linux setup detects architecture for binary downloads:
+
+```bash
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64)  ARCH_GO="amd64"; ARCH_MUSL="x86_64" ;;
+  aarch64) ARCH_GO="arm64"; ARCH_MUSL="aarch64" ;;
+esac
+```
+
+### 3. **Headless vs Headful Detection**
+
+GUI apps are conditionally installed based on display environment:
+
+```bash
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" || -n "${XDG_CURRENT_DESKTOP:-}" ]]; then
+  # Install VS Code, Chrome, Firefox, Alacritty, Android Studio
+fi
+```
+
+---
+
+## Data Management Patterns
+
+### 1. **Backup Strategy**
+
+Pre-existing configs are timestamped and preserved:
+
+```bash
+backup_dir="backup/$(date +%Y-%m-%d_%H-%M-%S)"
+# Copy real files (not symlinks) to backup before removal
+```
+
+### 2. **Migration Pattern**
+
+The codebase includes migration logic for layout changes:
+
+```bash
+# Migrate old layout: root alacritty/ folder was the former stow package
+if [ -d "$DOTFILES_DIR/alacritty" ] && [ ! -L "$DOTFILES_DIR/alacritty" ]; then
+  # Move device-specific configs to new location
+  # Remove old folder after migration
+fi
+```
+
+### 3. **Idempotent Installers**
+
+Each tool checks if already installed before proceeding:
+
+```bash
+if ! command -v gh &>/dev/null; then
+  echo "Installing gh CLI..."
+  # installation logic
+fi
+```
+
+---
+
+## Custom Tooling Patterns
+
+### 1. **Git Worktree Functions (`gct` / `grmt`)**
+
+Sophisticated shell functions for git worktree workflows:
+
+**`gct` (Git Create Worktree)**:
+- Creates worktree from existing remote branch (tracks it)
+- Or creates new branch from origin/main and pushes it
+- Automatically cd's into the worktree
+
+**`grmt` (Git Remove Worktree)**:
+- Removes current or specified worktree
+- Returns to main repo root
+- Supports `--force` flag
+
+### 2. **Homebrew State Management**
+
+The `brew backup` command uses `brew bundle dump` to capture state:
+- Formulae (CLI tools)
+- Casks (GUI apps)
+- Taps (third-party repositories)
+- VS Code extensions
+
+---
+
+## Configuration Patterns by Tool
+
+### Zsh + Zinit Plugin Management
+
+Uses **declarative plugin loading** with Zinit:
+
+```bash
+# Light-loading for most plugins
+zinit light zsh-users/zsh-syntax-highlighting
+zinit light zsh-users/zsh-completions
+zinit light zsh-users/zsh-autosuggestions
+zinit light Aloxaf/fzf-tab
+
+# Snippets from Oh-My-Zsh
+zinit snippet OMZP::git
+zinit snippet OMZP::command-not-found
+
+# Powerlevel10k with depth optimization
+zinit ice depth=1; zinit light romkatv/powerlevel10k
+```
+
+### Tmux Plugin Management
+
+Uses **TPM (Tmux Plugin Manager)** with declarative plugin list:
+
+```bash
+# Plugins
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
+```
+
+---
+
+## Security and Safety Patterns
+
+1. **`set -e`** in all scripts - exit on first error
+2. **Backup before overwrite** - Always preserve existing configs
+3. **Symlink detection** - Don't backup symlinks (only real files)
+4. **Root detection** - Handle root vs non-root appropriately (`$SUDO` variable)
+5. **Git credential helper** - Automatically configures `gh auth setup-git`
+
+---
+
+## Key Architectural Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **GNU Stow over Git bare repo** | Easier to understand, native tracking of file locations |
+| **Source scripts vs subprocess** | Preserves environment variables and functions |
+| **Profile separation** | Different tool sets and identities for personal vs work |
+| **Modular zsh configs** | Easier maintenance, clear separation of concerns |
+| **Agent skills as symlinks** | Single source of truth, multi-tool discovery |
+| **Idempotent installers** | Safe to run multiple times |
+| **Platform-specific scripts** | Clean separation of macOS vs Linux logic |
+
+---
+
+## Extension Points
+
+1. **New Stow Package**: Create `stow/<tool>/`, add `stow -d stow <tool> -t "$HOME" --adopt` to `setup-common.sh`
+2. **New Profile**: Create `stow/git/profiles/<name>` and `meta/homebrew/Brewfile.<name>` (macOS)
+3. **New Agent Skill**: Create `meta/.ai-agent/skills/<name>/SKILL.md` (auto-discovered)
+4. **New Zsh Config**: Add file to `stow/zsh/.zshrc.d/` (auto-sourced)
+
+---
+
+## Summary
+
+This dotfiles repository exemplifies **infrastructure-as-code** principles applied to personal development environments. The architecture demonstrates:
+
+- **Separation of concerns**: OS-specific, tool-specific, and common logic separated
+- **Modularity**: Each stow package is self-contained
+- **Idempotency**: Safe to run repeatedly
+- **Cross-platform abstraction**: Single codebase supports macOS and Linux
+- **Extensibility**: Easy to add new tools, profiles, and configurations
+- **Developer ergonomics**: Custom workflows (git worktrees), AI agent integration
+
+The design prioritizes **maintainability** and **discoverability** over cleverness, making it approachable for future modifications.

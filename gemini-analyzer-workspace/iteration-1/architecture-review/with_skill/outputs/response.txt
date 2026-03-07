@@ -1,0 +1,325 @@
+# Dotfiles Repository Architecture Review
+
+## Executive Summary
+
+This is a sophisticated, multi-platform dotfiles management system built around **GNU Stow** as the core deployment mechanism. The architecture demonstrates excellent separation of concerns, profile-based configuration management, and comprehensive cross-platform support for macOS and Linux.
+
+---
+
+## Overall Architecture
+
+### Core Design Philosophy
+
+The repository follows a **"convention over configuration"** approach with these key principles:
+
+1. **Single Entry Point**: All operations flow through `main.sh` which acts as the command router
+2. **Stow-Centric Deployment**: GNU Stow manages all symlinks with the `--adopt` flag for seamless migration
+3. **Profile-Based Configuration**: Git identity and macOS Homebrew packages are controlled via profiles (`personal`/`work`)
+4. **Platform Abstraction**: OS-specific logic is isolated in dedicated scripts (`setup-macos.sh`, `setup-linux.sh`, `setup-alpine.sh`)
+5. **Non-Destructive Operations**: Existing configs are backed up before being replaced
+
+### High-Level Architecture Diagram
+
+```
+main.sh (entry point)
+    ├── setup [profile]
+    │   ├── setup-macos.sh → setup-common.sh
+    │   ├── setup-linux.sh → setup-common.sh
+    │   └── setup-alpine.sh → setup-common.sh
+    ├── brew backup [profile]
+    │   └── backup.sh
+    └── alacritty-icon
+        └── alacritty-icon.sh
+
+stow/ (configuration packages)
+    ├── zsh/ → ~/.zshrc, ~/.zshrc.d/
+    ├── powerlevel10k/ → ~/.p10k.zsh
+    ├── tmux/ → ~/.tmux.conf
+    ├── alacritty/ → ~/.config/alacritty/
+    ├── git/ → ~/.gitconfig, ~/.gitignore
+    └── vscode/ → Platform-specific VS Code User/
+
+meta/ (metadata & scripts)
+    ├── scripts/ (setup-*.sh, backup.sh)
+    ├── homebrew/ (Brewfile.personal, Brewfile.work)
+    ├── packages/ (linux.packages)
+    └── .ai-agent/skills/ (AI agent skills)
+```
+
+---
+
+## Design Patterns
+
+### 1. **Command Pattern with Router**
+
+The `main.sh` script implements a command router pattern:
+
+```bash
+case "$command" in
+  setup) ...
+  brew) ...
+  alacritty-icon) ...
+esac
+```
+
+**Benefits**:
+- Clean separation of command logic
+- Easy to extend with new commands
+- Self-documenting through usage() function
+
+### 2. **Template Method Pattern**
+
+Platform-specific setup scripts follow a template method pattern:
+- **Abstract steps** in platform scripts (install platform-specific tools)
+- **Common steps** in `setup-common.sh` (stow packages, git profile, agent skills)
+
+```bash
+# setup-macos.sh
+install_homebrew()
+brew_bundle() 
+source setup-common.sh  # shared logic
+
+# setup-linux.sh
+install_apt_packages()
+install_github_cli()
+install_lazygit()
+...
+source setup-common.sh  # shared logic
+```
+
+### 3. **Strategy Pattern for Profiles**
+
+Profiles enable runtime configuration selection:
+- Git identity: `stow/git/profiles/<name>` copied to `.gitconfig-profile`
+- Homebrew packages: `meta/homebrew/Brewfile.<profile>`
+
+### 4. **Plugin Architecture in Zsh**
+
+The `.zshrc` uses a modular plugin system:
+```bash
+# Core loader
+for conf in "$HOME/.zshrc.d/"*.zsh(N); do
+  source "$conf"
+done
+```
+
+Each `.zshrc.d/*.zsh` file is a self-contained plugin:
+- `zinit.zsh` - Plugin manager setup
+- `utils.zsh` - Custom functions (gct, grmt)
+- `integrations.zsh` - fzf, zoxide initialization
+- `aliases.zsh` - Command aliases
+
+### 5. **Stow Package Pattern**
+
+Each directory under `stow/` mirrors the `$HOME` directory structure:
+```
+stow/zsh/
+  └── .zshrc              → ~/.zshrc
+  └── .zshrc.d/           → ~/.zshrc.d/
+
+stow/alacritty/
+  └── .config/alacritty/  → ~/.config/alacritty/
+```
+
+**Key flags**:
+- `--adopt`: Moves existing files into the repo before symlinking
+- `--no-folding`: Prevents stow from folding directories (important for alacritty)
+
+### 6. **Factory Pattern for Tool Installation**
+
+The Linux setup script uses a consistent pattern for installing tools from GitHub releases:
+
+```bash
+# 1. Check if already installed
+if ! command -v <tool> &>/dev/null; then
+  # 2. Fetch latest version from GitHub API
+  VERSION=$(curl -s "https://api.github.com/repos/<owner>/<repo>/releases/latest" | jq -r .tag_name)
+  # 3. Download and install
+  curl -fsSLo /tmp/<tool>.tar.gz "https://github.com/.../${VERSION}/..."
+  # 4. Install to /usr/local/bin
+  sudo install /tmp/<tool> /usr/local/bin/<tool>
+fi
+```
+
+---
+
+## Key Architectural Components
+
+### 1. **GNU Stow Integration**
+
+Stow is the cornerstone of the deployment strategy:
+
+```bash
+stow -d stow <package> -t "$HOME" --adopt
+```
+
+**How it works**:
+1. Each stow package mirrors the target directory structure
+2. Stow creates symlinks from `$HOME` to files in `stow/<package>/`
+3. `--adopt` moves existing real files into the stow directory before symlinking
+4. Enables atomic updates and easy rollback
+
+**Stow Packages**:
+| Package | Target | Notes |
+|---------|--------|-------|
+| `zsh` | `$HOME` | Shell configuration |
+| `powerlevel10k` | `$HOME` | Prompt theme |
+| `tmux` | `$HOME` | Terminal multiplexer |
+| `alacritty` | `$HOME` | Terminal emulator config |
+| `git` | `$HOME` | Git configuration |
+| `vscode` | Platform-specific | VS Code settings |
+
+### 2. **Profile System**
+
+Profiles control two aspects:
+
+**Git Identity**:
+```bash
+# stow/git/.gitconfig includes:
+[include]
+    path = ~/.gitconfig-profile  # gitignored, copied from profiles/
+```
+
+**macOS Homebrew**:
+```bash
+brew bundle --file="meta/homebrew/Brewfile.$profile"
+```
+
+### 3. **Migration & Backup System**
+
+Sophisticated backup mechanism handles existing configurations:
+
+```bash
+backup_dir="backup/$(date +%Y-%m-%d_%H-%M-%S)"
+
+# Backup real files (not symlinks)
+if [ -e "$target" ] && [ ! -L "$target" ]; then
+  cp -R "$target" "$backup_dir/"
+fi
+rm -rf "$target"
+```
+
+**Special handling**:
+- Old layout migration (alacritty/ → stow/alacritty/)
+- Stale symlink cleanup
+- VS Code platform-specific paths
+
+### 4. **AI Agent Skills System**
+
+Located in `meta/.ai-agent/skills/`, these are specialized knowledge modules for AI agents:
+
+```bash
+# Symlinked to multiple AI tool locations
+for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do
+  ln -s "$skills_src" "$target"
+done
+```
+
+**Skills included**:
+- `android-coroutines` - Kotlin coroutines patterns
+- `android-gradle` - Gradle build system guidance
+- `internal-comms` - Communication templates
+- `skill-creator` - Skill development framework
+- `android-emulator-skill` - Emulator automation
+- `gemini-analyzer` - Codebase analysis (self-referential!)
+
+### 5. **Cross-Platform Abstraction**
+
+**OS Detection**:
+```bash
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  # macOS
+elif command -v apt-get &>/dev/null; then
+  # Debian/Ubuntu
+elif command -v apk &>/dev/null; then
+  # Alpine
+fi
+```
+
+**Architecture Detection**:
+```bash
+case "$ARCH" in
+  x86_64)  ARCH_GO="amd64"; ARCH_MUSL="x86_64" ;;
+  aarch64) ARCH_GO="arm64"; ARCH_MUSL="aarch64" ;;
+esac
+```
+
+### 6. **Shell Configuration Architecture**
+
+**Zsh Configuration Hierarchy**:
+```
+.zshrc (main entry)
+├── p10k.zsh (prompt theme)
+└── .zshrc.d/*.zsh (modular configs)
+    ├── 00-path.zsh (PATH setup - loaded first due to numeric prefix)
+    ├── zinit.zsh (plugin manager)
+    ├── aliases.zsh
+    ├── utils.zsh (custom functions)
+    ├── integrations.zsh (fzf, zoxide)
+    └── ...
+```
+
+**Key Functions**:
+- `gct()` - Git worktree creation with smart branch handling
+- `grmt()` - Git worktree removal with safety checks
+
+---
+
+## Code Quality Observations
+
+### Strengths
+
+1. **Excellent Error Handling**: `set -e` throughout, proper exit codes
+2. **Idempotent Operations**: Safe to run multiple times
+3. **Comprehensive Comments**: Each script has purpose header
+4. **Consistent Style**: Uniform quoting, indentation, naming
+5. **Security Conscious**: Uses `curl -fsSL`, validates downloads
+6. **Documentation**: CLAUDE.md provides excellent context
+
+### Areas for Improvement
+
+1. **Missing Input Validation**: Some functions don't validate all inputs
+2. **Hardcoded Values**: GitHub API URLs, version strings could be configurable
+3. **No Dry-Run Mode**: Would be helpful for testing changes
+4. **Limited Logging**: Could benefit from structured logging levels
+
+---
+
+## Security Considerations
+
+1. **Safe Downloads**: Uses `-fsSL` flags with curl (fail, silent, show error, follow redirects)
+2. **GPG Verification**: apt keyrings properly secured with correct permissions
+3. **Credential Management**: Git credentials use osxkeychain and gh CLI helper
+4. **No Secrets in Repo**: `.gitconfig-profile` is gitignored
+
+---
+
+## Recommendations
+
+### Short-term
+
+1. Add dry-run mode to main.sh for testing
+2. Implement logging with verbosity levels
+3. Add pre-flight checks (disk space, network connectivity)
+
+### Long-term
+
+1. Consider Nix/Home Manager for even more reproducibility
+2. Add automated tests for setup scripts
+3. Create CI/CD pipeline to validate changes
+4. Document rollback procedures
+
+---
+
+## Conclusion
+
+This dotfiles repository represents a mature, production-ready configuration management system. The architecture demonstrates sophisticated understanding of:
+
+- Unix philosophy (do one thing well)
+- Configuration management patterns
+- Cross-platform compatibility
+- User experience (backups, migrations, clear error messages)
+
+The use of GNU Stow as the foundation is elegant and effective. The profile system and modular zsh configuration show thoughtful design. The AI agent skills integration is forward-thinking.
+
+**Overall Grade: A** - Well-architected, maintainable, and extensible.

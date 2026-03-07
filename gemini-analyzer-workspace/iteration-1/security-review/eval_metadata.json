@@ -1,0 +1,6 @@
+{
+  "eval_id": 2,
+  "eval_name": "security-review",
+  "prompt": "Can you ask Gemini to do a security review of my project? I want to know about any vulnerabilities",
+  "assertions": []
+}

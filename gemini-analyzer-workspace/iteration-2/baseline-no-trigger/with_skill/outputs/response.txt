@@ -1,0 +1,161 @@
+# Dotfiles Repository Structure Analysis
+
+## Overview
+This is a comprehensive dotfiles management system using **GNU Stow** as the core mechanism. It supports cross-platform setup (macOS, Linux, Alpine) with profile-based configuration for personal and work environments.
+
+---
+
+## Repository Architecture
+
+### Directory Structure
+```
+dotfiles/
+├── main.sh                    # Single entrypoint for all operations
+├── CLAUDE.md                  # Documentation for Claude Code
+├── README.md                  # User documentation
+├── meta/                      # Metadata and supporting files
+│   ├── scripts/               # Setup and utility scripts
+│   │   ├── setup-macos.sh     # macOS-specific bootstrap
+│   │   ├── setup-linux.sh     # Linux-specific bootstrap
+│   │   ├── setup-alpine.sh    # Alpine Linux bootstrap
+│   │   ├── setup-common.sh    # Shared platform-agnostic logic
+│   │   ├── backup.sh          # Homebrew backup script
+│   │   └── alacritty-icon.sh  # Alacritty icon replacement
+│   ├── homebrew/              # Brewfiles for profiles
+│   │   ├── Brewfile.personal
+│   │   └── Brewfile.work
+│   ├── packages/              # Package lists
+│   │   └── linux.packages     # apt packages for Linux
+│   └── .ai-agent/skills/      # AI agent skill definitions
+├── stow/                      # Stow packages (mirrors $HOME structure)
+│   ├── zsh/                   # Zsh configuration
+│   ├── powerlevel10k/         # Powerlevel10k theme config
+│   ├── tmux/                  # Tmux configuration
+│   ├── alacritty/             # Terminal emulator config
+│   ├── git/                   # Git configuration
+│   │   └── profiles/          # Git identity profiles
+│   └── vscode/                # VS Code settings
+└── backup/                    # Timestamped config backups
+```
+
+---
+
+## Key Components
+
+### 1. Entry Point (`main.sh`)
+- Single command interface for all operations
+- OS auto-detection (macOS, Linux with apt, Alpine with apk)
+- Dispatches to platform-specific setup scripts
+- Supports commands: `setup`, `brew backup`, `alacritty-icon`
+
+### 2. Platform-Specific Setup Scripts
+
+**setup-macos.sh**:
+- Installs Homebrew if missing
+- Configures Apple Silicon vs Intel Homebrew paths
+- Runs `brew bundle` from profile-specific Brewfile
+- Sources setup-common.sh for shared logic
+
+**setup-linux.sh**:
+- Installs apt packages from `meta/packages/linux.packages`
+- Installs CLI tools via official scripts (gh, lazygit, zoxide, yq, just, uv, Docker, Tailscale, Node.js)
+- Installs Nerd Fonts
+- Conditionally installs GUI apps (VS Code, Chrome, Firefox, VLC, Alacritty, Android Studio)
+- Sets up SDKMAN! with Gradle and Kotlin
+
+**setup-common.sh** (Shared Logic):
+- Sets up SDKMAN! for Java/Kotlin development
+- Cleans .DS_Store files before stowing
+- Migrates old alacritty layout to new stow-based structure
+- Backs up existing configs before overwriting
+- Stows all packages using GNU Stow with `--adopt` flag
+- Handles VS Code settings (platform-specific paths)
+- Configures Git profile
+- Sets up GitHub CLI authentication
+- Symlinks AI agent skills to `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`
+
+### 3. Stow Packages
+
+Each package mirrors the $HOME directory structure:
+
+| Package | Target Path | Contents |
+|---------|-------------|----------|
+| zsh | `$HOME` | `.zshrc`, `.zshrc.d/` (zinit plugins, worktree functions) |
+| powerlevel10k | `$HOME` | `.p10k.zsh` (theme configuration) |
+| tmux | `$HOME` | `.tmux.conf` |
+| alacritty | `$HOME` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` |
+| git | `$HOME` | `.gitconfig`, `.gitignore`, `.gitconfig-profile` |
+| vscode | Platform-specific | `settings.json`, `keybindings.json` |
+
+**Key Stow Flags**:
+- `--adopt`: Moves pre-existing files into the repo
+- `--no-folding`: Prevents symlinking entire parent directories (used for alacritty)
+
+### 4. Profile System
+
+Supports two profiles: `personal` and `work`
+
+**Profile Controls**:
+1. Git identity: `stow/git/profiles/<profile>` copied to `stow/git/.gitconfig-profile`
+2. macOS Homebrew packages: `meta/homebrew/Brewfile.<profile>`
+3. Linux uses same packages regardless of profile
+
+**Profile Files Location**:
+- `stow/git/profiles/personal`
+- `stow/git/profiles/work`
+
+### 5. Backup System
+- Timestamped backups in `backup/YYYY-MM-DD_HH-MM-SS/`
+- Backs up existing config files before stowing (not symlinks)
+- Never edit files in backup directory
+
+---
+
+## Important Conventions
+
+1. **Migration Handling**: The setup detects and migrates old flat layout (root `alacritty/` folder) to new stow-based structure
+2. **Device-Specific Configs**: Placed in `stow/alacritty/.config/` (gitignored, except alacritty/)
+3. **Git Profile**: `stow/git/.gitconfig-profile` is gitignored (per-machine identity)
+4. **AI Skills**: Centralized in `meta/.ai-agent/skills/` and symlinked to multiple agent directories
+
+---
+
+## Usage Examples
+
+```bash
+# Full setup with personal profile (default)
+./main.sh setup
+
+# Setup with work profile
+./main.sh setup work
+
+# Backup Homebrew state
+./main.sh brew backup
+./main.sh brew backup work
+
+# Replace Alacritty icon
+./main.sh alacritty-icon
+```
+
+---
+
+## Configuration Files
+
+**Key Configuration Files**:
+- `stow/zsh/.zshrc` - Main zsh configuration with Zinit plugins
+- `stow/zsh/.zshrc.d/` - Modular zsh configuration snippets
+- `stow/git/.gitconfig` - Global git configuration with profile include
+- `stow/alacritty/.config/alacritty/alacritty.toml` - Terminal settings
+- `stow/alacritty/.config/alacritty/themes/` - Color themes
+
+---
+
+## Summary
+
+This is a well-architected dotfiles system with:
+- Clean separation of concerns (platform-specific vs shared logic)
+- Profile-based configuration for different environments
+- Safe migration and backup strategies
+- GNU Stow for symlink management
+- AI agent skill integration
+- Cross-platform support (macOS, Linux, Alpine)

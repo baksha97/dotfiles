@@ -1,0 +1,350 @@
+Performance Bottlenecks and Optimization Opportunities Analysis
+==============================================================
+
+This dotfiles repository contains bootstrap scripts for macOS and Linux systems. While well-structured for maintainability, there are several performance bottlenecks and optimization opportunities that could improve execution speed and resource efficiency.
+
+
+## CRITICAL PERFORMANCE ISSUES
+
+### 1. Repeated Network Requests (setup-linux.sh, setup-alpine.sh)
+
+**Issue:** Multiple API calls to GitHub to fetch latest release versions for each tool installation.
+
+**Affected Locations:**
+- setup-linux.sh:58 - lazygit version fetch
+- setup-linux.sh:76 - fzf version fetch
+- setup-linux.sh:88 - yq version fetch
+- setup-linux.sh:119 - docker-compose version fetch
+- setup-alpine.sh:74-75 - lazygit version fetch (uses grep instead of jq)
+- setup-alpine.sh:96-97 - yq version fetch (uses grep instead of jq)
+
+**Performance Impact:**
+- Each `curl` to api.github.com takes 200-500ms (depending on network)
+- 4+ sequential API calls = 1-2 seconds of network latency alone
+- Rate limiting from GitHub API could cause failures
+
+**Optimization:**
+```bash
+# Cache GitHub API responses for the duration of the script
+GITHUB_API_CACHE=/tmp/github_releases_$$
+fetch_latest_version() {
+  local repo="$1"
+  local cache_key="${repo//\//_}"
+  if [[ ! -f "$GITHUB_API_CACHE/$cache_key" ]]; then
+    mkdir -p "$GITHUB_API_CACHE"
+    curl -s "https://api.github.com/repos/$repo/releases/latest" > "$GITHUB_API_CACHE/$cache_key"
+  fi
+  cat "$GITHUB_API_CACHE/$cache_key"
+}
+
+# Use cached version
+LG_VERSION=$(fetch_latest_version "jesseduffield/lazygit" | jq -r .tag_name | sed 's/v//')
+FZF_VERSION=$(fetch_latest_version "junegunn/fzf" | jq -r .tag_name | sed 's/v//')
+```
+
+### 2. Redundant apt-get update Calls (setup-linux.sh)
+
+**Issue:** `apt-get update` is called multiple times throughout the script.
+
+**Affected Locations:**
+- setup-linux.sh:32 - Initial update
+- setup-linux.sh:51 - After adding gh CLI repo
+- setup-linux.sh:207, 220 - After adding VS Code repos
+- setup-linux.sh:249 - After adding Alacritty PPA
+
+**Performance Impact:**
+- Each `apt-get update` takes 2-10 seconds depending on connection
+- Called at least 5 times = 10-50 seconds of redundant work
+
+**Optimization:**
+```bash
+# Track if update is needed
+APT_NEEDS_UPDATE=false
+
+add_apt_repo() {
+  # ... repo setup ...
+  APT_NEEDS_UPDATE=true
+}
+
+# Single update at strategic points
+if [[ "$APT_NEEDS_UPDATE" == true ]]; then
+  $SUDO apt-get update -qq
+fi
+```
+
+### 3. Synchronous Font Installation (setup-linux.sh:179-190, setup-alpine.sh:129-140)
+
+**Issue:** Nerd Fonts are downloaded and extracted sequentially in a loop.
+
+**Performance Impact:**
+- 8 fonts × ~5MB each = ~40MB download
+- Sequential processing wastes bandwidth and time
+- Each `curl | tar` pipeline blocks the next
+
+**Optimization:**
+```bash
+# Parallel font downloads with xargs or background jobs
+install_fonts_parallel() {
+  local font_dir="$HOME/.local/share/fonts"
+  local max_jobs=4
+  local jobs=0
+  
+  for font in "${nerd_fonts[@]}"; do
+    (
+      marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
+      [[ -f "$marker" ]] && exit 0
+      curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_fonts_version}/${font}.tar.xz" | tar -xJ -C "$font_dir"
+      touch "$marker"
+    ) &
+    ((++jobs >= max_jobs)) && wait -n && ((--jobs))
+  done
+  wait
+  fc-cache -f "$font_dir"
+}
+```
+
+### 4. No Installation Check Caching
+
+**Issue:** Tools are checked for existence with `command -v` on every run, but network operations proceed regardless.
+
+**Affected Locations:**
+- Throughout setup-linux.sh and setup-alpine.sh
+
+**Performance Impact:**
+- Unnecessary network requests for already-installed tools
+- Script always takes full time regardless of current state
+
+**Optimization:**
+```bash
+# Create a state file to skip already-installed tools
+INSTALL_STATE_FILE="$HOME/.dotfiles_install_state"
+
+is_installed() {
+  local tool="$1"
+  grep -q "^$tool:" "$INSTALL_STATE_FILE" 2>/dev/null && return 0
+  command -v "$tool" &>/dev/null || return 1
+  echo "$tool:$(date +%Y-%m-%d)" >> "$INSTALL_STATE_FILE"
+  return 0
+}
+
+# Skip if already installed
+is_installed lazygit && echo "lazygit already installed, skipping..."
+```
+
+
+## MODERATE PERFORMANCE ISSUES
+
+### 5. Inefficient File Operations in setup-common.sh
+
+**Issue:** Multiple `find` and `rm` operations with redundant checks.
+
+**Affected Locations:**
+- setup-common.sh:14 - .DS_Store cleanup runs unconditionally
+- setup-common.sh:57-66 - Backup loop iterates even when no backup needed
+- setup-common.sh:70-81 - Complex conditional logic for ~/.config
+
+**Performance Impact:**
+- `find . -name .DS_Store -delete` traverses entire repo on every run
+- Backup operations create I/O overhead even when nothing to backup
+
+**Optimization:**
+```bash
+# Only clean .DS_Store if they exist (rare occurrence)
+if find . -name ".DS_Store" -print -quit 2>/dev/null | grep -q .; then
+  find . -name ".DS_Store" -delete
+fi
+
+# Batch backup operations
+backup_targets=()
+for target in "${stow_targets[@]}"; do
+  [[ -e "$target" && ! -L "$target" ]] && backup_targets+=("$target")
+done
+
+if [[ ${#backup_targets[@]} -gt 0 ]]; then
+  mkdir -p "$backup_dir"
+  cp -R "${backup_targets[@]}" "$backup_dir/"
+  rm -rf "${backup_targets[@]}"
+fi
+```
+
+### 6. Redundant SDKMAN! Sourcing
+
+**Issue:** SDKMAN! init script is sourced multiple times.
+
+**Affected Locations:**
+- setup-common.sh:10 - During SDKMAN! installation
+- stow/zsh/.zshrc:14 - In every new shell
+- setup-linux.sh:274 - During gradle/kotlin installation
+
+**Performance Impact:**
+- SDKMAN! init adds 200-500ms to shell startup time
+- Sourcing twice in setup is wasteful
+
+**Optimization:**
+```bash
+# In setup-linux.sh, avoid redundant sourcing
+if [[ -f "$HOME/.sdkman/bin/sdkman-init.sh" && -z "$SDKMAN_INIT_SOURCED" ]]; then
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+  export SDKMAN_INIT_SOURCED=1
+fi
+```
+
+### 7. Suboptimal Shell Pattern in .zshrc
+
+**Issue:** Glob pattern `*.zsh(N)` is evaluated on every shell startup.
+
+**Affected Location:**
+- stow/zsh/.zshrc:9 - `for conf in "$HOME/.zshrc.d/"*.zsh(N)`
+
+**Performance Impact:**
+- File system glob expansion adds small overhead on each shell start
+- With many files, this compounds
+
+**Optimization:**
+```bash
+# Cache the file list
+ZSHRC_D_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zshrc-d-files"
+if [[ ! -f "$ZSHRC_D_CACHE" || "$ZSHRC_D_CACHE" -ot "$HOME/.zshrc.d" ]]; then
+  echo "$HOME/.zshrc.d/"*.zsh(N) > "$ZSHRC_D_CACHE"
+fi
+for conf in $(<"$ZSHRC_D_CACHE"); do
+  [[ -f "$conf" ]] && source "$conf"
+done
+```
+
+
+## MINOR OPTIMIZATIONS
+
+### 8. Inefficient Git Commands in utils.zsh
+
+**Issue:** Multiple git calls that could be combined or cached.
+
+**Affected Locations:**
+- utils.zsh:10-11 - `git rev-parse` and `git remote` called separately
+- utils.zsh:16-17 - `git fetch` and `git show-ref` for same branch
+- utils.zsh:52 - `git worktree list --porcelain` piped to head/sed
+
+**Optimization:**
+```bash
+# Combine git config queries
+git_info=$(git rev-parse --show-toplevel && git remote get-url origin)
+toplevel=$(head -1 <<< "$git_info")
+repo_name=$(basename -s .git "$(tail -1 <<< "$git_info")")
+
+# Use plumbing commands more efficiently
+main_worktree=$(git rev-parse --git-path ..)
+```
+
+### 9. brew bundle Verbosity
+
+**Issue:** `brew bundle --verbose` outputs excessive information.
+
+**Affected Location:**
+- setup-macos.sh:31
+
+**Performance Impact:**
+- Minimal direct performance impact, but verbose output slows terminal rendering
+- Use `--quiet` for better performance and cleaner output
+
+### 10. Missing Connection Timeout/Retry Logic
+
+**Issue:** Network operations lack timeout and retry configuration.
+
+**Affected Locations:**
+- All `curl` commands throughout
+
+**Optimization:**
+```bash
+# Define consistent curl options
+CURL_OPTS="--connect-timeout 30 --max-time 300 --retry 3 --retry-delay 5"
+curl $CURL_OPTS -fsSL "$url"
+```
+
+
+## ARCHITECTURAL IMPROVEMENTS
+
+### 11. Parallel Installation Opportunities
+
+Many tool installations are independent and could run in parallel:
+- All "latest release" binary downloads (lazygit, fzf, yq, etc.)
+- Font installations
+- npm global packages
+
+### 12. Selective Installation Based on Profile
+
+Currently, profiles only affect git config and Homebrew packages. Could extend to:
+- Skip heavy GUI apps in headless environments
+- Skip Android Studio if not developing for Android
+- Skip VS Code if already installed via alternative method
+
+### 13. Resume Capability
+
+Add checkpoint/resume functionality for interrupted installations:
+```bash
+CHECKPOINT_FILE="/tmp/dotfiles_checkpoint_$$"
+
+checkpoint() {
+  echo "$1" >> "$CHECKPOINT_FILE"
+}
+
+should_run() {
+  local step="$1"
+  ! grep -q "^$step$" "$CHECKPOINT_FILE" 2>/dev/null
+}
+
+# Usage
+if should_run "lazygit"; then
+  install_lazygit
+  checkpoint "lazygit"
+fi
+```
+
+
+## SUMMARY OF IMPACT
+
+| Issue | Time Saved (Estimated) | Priority |
+|-------|----------------------|----------|
+| Cache GitHub API calls | 1-2 seconds | HIGH |
+| Reduce apt-get updates | 10-30 seconds | HIGH |
+| Parallel font downloads | 5-15 seconds | HIGH |
+| Skip installed tools | 10-60 seconds | HIGH |
+| Batch file operations | 1-3 seconds | MEDIUM |
+| Optimize SDKMAN! sourcing | 0.5-1 second | MEDIUM |
+| Cache .zshrc.d glob | 0.1-0.5 seconds | LOW |
+| Combine git commands | 0.1-0.3 seconds | LOW |
+
+**Total Potential Time Savings: 30-110 seconds per run** (on subsequent runs with caching)
+
+
+## RECOMMENDED IMPLEMENTATION ORDER
+
+1. **Immediate (high impact, low effort):**
+   - Add GitHub API response caching
+   - Consolidate apt-get update calls
+   - Add connection timeouts to curl
+
+2. **Short-term (medium effort):**
+   - Implement installation state tracking
+   - Parallel font downloads
+   - Batch file backup operations
+
+3. **Long-term (architectural):**
+   - Add checkpoint/resume functionality
+   - Implement profile-based selective installation
+   - Add dry-run mode for testing
+
+
+## BENCHMARKING RECOMMENDATIONS
+
+To measure improvements, add timing to the setup scripts:
+
+```bash
+# At start of script
+SCRIPT_START=$(date +%s)
+
+# At end of script
+SCRIPT_END=$(date +%s)
+echo "Setup completed in $((SCRIPT_END - SCRIPT_START)) seconds"
+```
+
+This would help identify which optimizations have the most real-world impact.

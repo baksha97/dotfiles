@@ -1,0 +1,6 @@
+{
+  "eval_id": 4,
+  "eval_name": "performance-analysis",
+  "prompt": "Please ask gemini to look at this codebase and identify any performance bottlenecks or optimization opportunities",
+  "assertions": []
+}

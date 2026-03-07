@@ -12,7 +12,10 @@ elif [ -L "$HOME/.config/alacritty" ]; then
   rm "$HOME/.config/alacritty"
 elif [ -d "$HOME/.config/alacritty" ]; then
   if ! find "$HOME/.config/alacritty" -maxdepth 2 -type l -print -quit | grep -q .; then
-    [ "$backed_up" = false ] && mkdir -p "$backup_dir" && backed_up=true
+    if [ "$backed_up" = false ]; then
+      mkdir -p "$backup_dir"
+      backed_up=true
+    fi
     cp -R "$HOME/.config/alacritty" "$backup_dir/"
     rm -rf "$HOME/.config/alacritty"
   fi

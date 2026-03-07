@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 # setup-common.sh — platform-agnostic stow, git, and skills setup.
 # Expects $profile and $DOTFILES_DIR to be set by the calling script.
 
@@ -50,7 +50,10 @@ fi
 stow_backup() {
   local target="$1"
   if [ -e "$target" ] && [ ! -L "$target" ]; then
-    [ "$backed_up" = false ] && mkdir -p "$backup_dir" && backed_up=true
+    if [ "$backed_up" = false ]; then
+      mkdir -p "$backup_dir"
+      backed_up=true
+    fi
     cp -R "$target" "$backup_dir/"
   fi
   rm -rf "$target"

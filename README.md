@@ -1,6 +1,6 @@
 # Dotfiles
 
-Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS (or Linux) machine with shell, editor, terminal, git, and AI agent skill configurations.
+Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS, Linux (Debian/Ubuntu), or Alpine machine with shell, editor, terminal, git, and AI agent skill configurations.
 
 ## Table of Contents
 
@@ -74,6 +74,15 @@ stow/
 └── ...
 ```
 
+### Composition Pattern
+
+The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow package requires only dropping one file** — no edits to existing scripts.
+
+- `meta/scripts/install.d/shared/` — tool installers for all Linux-family platforms
+- `meta/scripts/install.d/linux/` — Debian/Ubuntu-only tools
+- `meta/scripts/install.d/linux-gui/` — GUI apps (headful only)
+- `meta/scripts/stow.d/` — one stow manifest per package
+
 ## Repository Structure
 
 ```
@@ -101,29 +110,33 @@ dotfiles/
 │   │   ├── settings.json
 │   │   └── keybindings.json
 │   └── zsh/                       # Zsh shell config
-│       ├── .zshrc
+│       ├── .zshrc                 # Sources all .zshrc.d/*.zsh (reference pattern)
 │       └── .zshrc.d/              # Modular zsh configurations
 └── meta/                          # Support files (not stowed)
     ├── .ai-agent/                 # AI coding agent configuration
     │   └── skills/
-    │       ├── android-coroutines/
-    │       ├── android-emulator-skill/
-    │       ├── android-gradle-logic/
-    │       ├── gradle-build-performance/
-    │       └── kotlin-concurrency-expert/
     ├── homebrew/                   # Homebrew package management (macOS only)
-    │   ├── Brewfile.personal       # Packages for the personal profile
-    │   └── Brewfile.work           # Packages for the work profile
+    │   ├── Brewfile.personal
+    │   └── Brewfile.work
     ├── packages/                   # Linux package lists
-    │   └── linux.packages          # apt packages for Linux setup
-    ├── scripts/                    # Implementation scripts
-    │   ├── setup-macos.sh          # macOS bootstrap (Homebrew)
-    │   ├── setup-linux.sh          # Linux bootstrap (apt + scripts)
-    │   ├── setup-common.sh         # Shared stow/git/skills setup
-    │   ├── backup.sh               # Brewfile dump
-    │   └── alacritty-icon.sh       # Icon replacement
-    └── terminal/                   # macOS Terminal.app profiles
-        └── Monokai.terminal        # Monokai color theme
+    │   ├── linux.packages          # apt packages for Debian/Ubuntu setup
+    │   └── alpine.packages         # apk packages for Alpine setup
+    └── scripts/                    # Implementation scripts
+        ├── lib/                    # Shared utilities (sourced first by platform scripts)
+        │   ├── arch.sh             # ARCH_GO / ARCH_MUSL detection
+        │   ├── sudo.sh             # SUDO prefix detection
+        │   └── github.sh           # gh_latest_version() helper
+        ├── install.d/              # Per-tool installers (one file = one tool)
+        │   ├── shared/             # Tools for all Linux-family platforms
+        │   ├── linux/              # Debian/Ubuntu-only tools
+        │   └── linux-gui/          # GUI apps (headful environments only)
+        ├── stow.d/                 # Per-package stow manifests (one file = one package)
+        ├── setup-macos.sh          # macOS bootstrap (Homebrew)
+        ├── setup-linux.sh          # Linux bootstrap orchestrator
+        ├── setup-alpine.sh         # Alpine bootstrap orchestrator
+        ├── setup-common.sh         # Shared stow/git/skills setup
+        ├── backup.sh               # Brewfile dump
+        └── alacritty-icon.sh       # Icon replacement
 ```
 
 ## Stow Packages
@@ -151,11 +164,12 @@ The `setup` command performs these steps in order:
 2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
 3. **Platform-specific package installation:**
    - **macOS**: Install Homebrew (if missing), then install from `meta/homebrew/Brewfile.<profile>`
-   - **Linux**: Install apt packages from `meta/packages/linux.packages`, then install tools via official scripts
+   - **Linux**: Install apt packages from `meta/packages/linux.packages`, then source each tool installer in `install.d/`
+   - **Alpine**: Install apk packages from `meta/packages/alpine.packages`, then source shared tool installers
 4. **Install SDKMAN!** for JVM SDK management
-5. **Stow all packages** — creates symlinks for zsh, powerlevel10k, tmux, alacritty, vscode, and git
+5. **Stow all packages** — each `stow.d/` script backs up and links one package
 6. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
-7. **Symlink Agent Skills** — makes skills discoverable by Copilot and Cursor
+7. **Symlink Agent Skills** — makes skills discoverable by Copilot, Cursor, and other agents
 8. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
 
 ### macOS Brewfile Highlights
@@ -170,25 +184,32 @@ The `setup` command performs these steps in order:
 
 ### Linux Installation Details
 
-On Linux, the setup installs:
-
 **apt packages** (`meta/packages/linux.packages`):
 - Core: `git`, `git-lfs`, `curl`, `zsh`, `tmux`, `stow`, `fzf`, `jq`
 - Media: `ffmpeg`, `scrcpy`
 - Tools: `rclone`, `aria2`, `ansible`, `exiftool`
 - Utilities: `fontconfig`, `unzip`, `zip`, `ca-certificates`
 
-**Official install scripts** (all architectures):
-- `gh` CLI, `lazygit`, `zoxide`, `yq`, `just`, `uv`, `docker`, `docker-compose`
-- `tailscale`, `nodejs`, `vercel`, `opencode`
+**Shared tools** (`install.d/shared/` — also installed on Alpine):
+- `lazygit`, `zoxide`, `yq`, `uv`
 - **Nerd Fonts**: DroidSansMono, FiraCode, JetBrainsMono, Meslo, Mononoki, RobotoMono, SourceCodePro, SymbolsOnly
 
-**GUI apps** (headful environments only - when `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_CURRENT_DESKTOP` is set):
+**Linux-only tools** (`install.d/linux/`):
+- `gh` CLI, `fzf` (latest from GitHub), `just`, `docker`, `docker-compose` plugin
+- `tailscale`, `nodejs` LTS, `vercel`, `gemini-cli`, `opencode`, `claude`
+
+**GUI apps** (`install.d/linux-gui/` — headful environments only):
 - VS Code, VS Code Insiders, Google Chrome (amd64 only), Firefox, VLC, Alacritty, Android Studio
+
+### Alpine Installation Details
+
+**apk packages** (`meta/packages/alpine.packages`): `git`, `curl`, `zsh`, `tmux`, `fzf`, `jq`, `rclone`, `aria2`, `ffmpeg`, and more.
+
+**Shared tools** (`install.d/shared/`): same as Linux shared tools above.
 
 ## Profiles
 
-Profiles control which Homebrew packages are installed on macOS. The selected profile determines which Brewfile is used during setup. Linux uses the same `meta/packages/linux.packages` regardless of profile. The default profile is `personal`.
+Profiles control which Homebrew packages are installed on macOS. The selected profile determines which Brewfile is used during setup. Linux and Alpine use the same package lists regardless of profile. The default profile is `personal`.
 
 Available profiles:
 - `personal` — Full macOS setup with GUI apps
@@ -238,7 +259,7 @@ To add a new skill, create a directory under `meta/.ai-agent/skills/` containing
 
 ## Shell Configuration
 
-The `.zshrc` sets up a modern Zsh environment using [Zinit](https://github.com/zdharma-continuum/zinit) as the plugin manager.
+The `.zshrc` sets up a modern Zsh environment using [Zinit](https://github.com/zdharma-continuum/zinit) as the plugin manager. It sources all files from `~/.zshrc.d/` — the same file-loop composition pattern used by the setup scripts.
 
 ### Plugin Stack
 
@@ -390,14 +411,41 @@ grmt /path/to/worktree  # remove specific worktree
 
 ## Adding New Configurations
 
-To add a new tool's config to this repo:
+### New tool installer
 
-1. Create a new directory under `stow/` named after the tool (e.g., `stow/neovim/`)
-2. Mirror the directory structure relative to `$HOME` inside it (e.g., `stow/neovim/.config/nvim/init.lua`)
-3. Add a `stow` command to `meta/scripts/setup-common.sh`:
+Create a single file — no existing scripts need editing:
 
 ```bash
-stow -d stow neovim -t "$HOME" --adopt
+# For a tool available on all Linux-family platforms:
+meta/scripts/install.d/shared/<NN>-toolname.sh
+
+# For a Linux-only tool:
+meta/scripts/install.d/linux/<NN>-toolname.sh
 ```
 
-4. Run `./main.sh setup` or manually run the stow command to create the symlinks
+Template:
+```bash
+#!/bin/bash
+# toolname — short description
+command -v toolname &>/dev/null && return 0
+echo "Installing toolname..."
+curl -fsSL https://toolname.dev/install.sh | bash
+```
+
+Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`) and `gh_latest_version OWNER REPO` (from `lib/github.sh`) as needed.
+
+### New stow package
+
+1. Create `stow/<tool>/` mirroring `$HOME` structure (e.g., `stow/neovim/.config/nvim/init.lua`)
+2. Create `meta/scripts/stow.d/<NN>-tool.sh`:
+
+```bash
+#!/bin/bash
+# tool — short description
+stow_backup "$HOME/.toolrc"        # backs up real files, removes symlinks
+stow_package tool                  # stows against $HOME by default
+```
+
+For non-`$HOME` targets (like claude or vscode), set `STOW_TARGET` before calling `stow_package`. For `--no-folding` packages, pass the flag directly: `stow_package tool --no-folding`.
+
+3. Run `./main.sh setup` or manually run the stow command.

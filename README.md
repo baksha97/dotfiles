@@ -391,6 +391,31 @@ The standalone non-symlink "merge" installer. Useful for environments where syml
 
 ## Custom Shell Functions
 
+### `link-skills` / `unlink-skills` — Project Skill Linking
+
+Link a project's agent skills into the standard discovery paths (`~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`) without modifying dotfiles. Run from the repo root — the source directory is auto-discovered from common conventions:
+
+| Priority | Path | Convention |
+|----------|------|------------|
+| 1 | `.ai-agent/skills/` | This dotfiles repo |
+| 2 | `.claude/skills/` | Claude Code |
+| 3 | `.agents/skills/` | Generic agents |
+| 4 | `.github/skills/` | GitHub ecosystem |
+| 5 | `.copilot/skills/` | GitHub Copilot |
+
+```bash
+# From a project repo root — auto-discovers the skills directory
+link-skills
+
+# Explicit path
+link-skills path/to/skills
+
+# Remove only this project's skill links (global dotfiles skills untouched)
+unlink-skills
+```
+
+If the target paths are currently whole-dir symlinks (as set up by `./main.sh setup`), `link-skills` expands them into individual per-skill symlinks first so global dotfiles skills and project skills coexist. `unlink-skills` uses `readlink` to only remove links it owns.
+
 ### `gct` — Git Create Worktree
 
 Creates a git worktree for a branch. If the branch exists on `origin`, it tracks the remote. Otherwise, it creates a new branch from `origin/main` and pushes it.

@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. Trigger on phrases like "make a skill", "build a command", "turn this into a skill", "test my skill", or "improve a skill" — even if the user doesn't explicitly say "skill creator".
 ---
 
 # Skill Creator
@@ -27,7 +27,6 @@ Of course, you should always be flexible and if the user is like "I don't need t
 
 Then after the skill is done (but again, the order is flexible), you can also run the skill description improver, which we have a whole separate script for, to optimize the triggering of the skill.
 
-Cool? Cool.
 
 ## Communicating with the user
 
@@ -82,6 +81,8 @@ skill-name/
     ├── references/ - Docs loaded into context as needed
     └── assets/     - Files used in output (templates, icons, fonts)
 ```
+
+Skills live inside a parent `skills/` directory. For **dotfiles-managed global skills**, that's `meta/.ai-agent/skills/`. For **project-specific skills**, place them under one of the conventional paths that `link-skills` auto-discovers (see "Activating Skills in a Project" below).
 
 #### Progressive Disclosure
 
@@ -160,6 +161,43 @@ Save test cases to `evals/evals.json`. Don't write assertions yet — just the p
 
 See `references/schemas.md` for the full schema (including the `assertions` field, which you'll add later).
 
+## Activating Skills in a Project
+
+Before test runs can discover a project-level skill, it must be linked into the agent discovery paths. `link-skills` and `unlink-skills` are shell functions available on the path (from `~/.zshrc.d/utils.zsh`).
+
+```bash
+# From the project root — auto-discovers the skills directory
+link-skills
+
+# Remove only this project's links when done (global dotfiles skills untouched)
+unlink-skills
+```
+
+These functions link each skill subdirectory into `~/.copilot/skills`, `~/.cursor/skills`, and `~/.agents/skills`. If those paths are currently whole-directory symlinks (as set up by the dotfiles bootstrapper), `link-skills` expands them into individual per-skill symlinks first so global and project skills coexist. Both commands are idempotent.
+
+### Auto-discovery convention
+
+`link-skills` probes these directories in priority order and uses the first one found:
+
+| Priority | Path | Convention |
+|----------|------|------------|
+| 1 | `.ai-agent/skills/` | dotfiles / this repo |
+| 2 | `.claude/skills/` | Claude Code |
+| 3 | `.agents/skills/` | Generic agents |
+| 4 | `.github/skills/` | GitHub ecosystem |
+| 5 | `.copilot/skills/` | GitHub Copilot |
+
+When creating a skill for a project, suggest placing it under whichever convention the project already uses. If none exists, default to `.claude/skills/<skill-name>/` for Claude Code projects or `.ai-agent/skills/<skill-name>/` otherwise.
+
+### When to run it
+
+- **New project skill**: after writing the SKILL.md, run `link-skills` before starting eval runs so test subagents can find it.
+- **Unfamiliar project**: if the user asks to work with skills in an existing repo, run `link-skills` to activate whichever convention the repo uses.
+- **Switching projects**: `unlink-skills` in the old project root, then `link-skills` in the new one.
+- **Explicit path**: pass it directly if the skills directory is non-standard: `link-skills path/to/skills`.
+
+---
+
 ## Running and evaluating test cases
 
 This section is one continuous sequence — don't stop partway through. Do NOT use `/skill-test` or any other testing skill.
@@ -229,7 +267,7 @@ Once all runs are done:
    python -m scripts.aggregate_benchmark <workspace>/iteration-N --skill-name <name>
    ```
    This produces `benchmark.json` and `benchmark.md` with pass_rate, time, and tokens for each configuration, with mean ± stddev and the delta. If generating benchmark.json manually, see `references/schemas.md` for the exact schema the viewer expects.
-Put each with_skill version before its baseline counterpart.
+   Put each with_skill version before its baseline counterpart.
 
 3. **Do an analyst pass** — read the benchmark data and surface patterns the aggregate stats might hide. See `agents/analyzer.md` (the "Analyzing Benchmark Results" section) for what to look for — things like assertions that always pass regardless of skill (non-discriminating), high-variance evals (possibly flaky), and time/token tradeoffs.
 
@@ -435,21 +473,6 @@ In Claude.ai, the core workflow is the same (draft → test → review → impro
 
 **Packaging**: The `package_skill.py` script works anywhere with Python and a filesystem. On Claude.ai, you can run it and the user can download the resulting `.skill` file.
 
----
-
-## Cowork-Specific Instructions
-
-If you're in Cowork, the main things to know are:
-
-- You have subagents, so the main workflow (spawn test cases in parallel, run baselines, grade, etc.) all works. (However, if you run into severe problems with timeouts, it's OK to run the test prompts in series rather than parallel.)
-- You don't have a browser or display, so when generating the eval viewer, use `--static <output_path>` to write a standalone HTML file instead of starting a server. Then proffer a link that the user can click to open the HTML in their browser.
-- For whatever reason, the Cowork setup seems to disincline Claude from generating the eval viewer after running the tests, so just to reiterate: whether you're in Cowork or in Claude Code, after running tests, you should always generate the eval viewer for the human to look at examples before revising the skill yourself and trying to make corrections, using `generate_review.py` (not writing your own boutique html code). Sorry in advance but I'm gonna go all caps here: GENERATE THE EVAL VIEWER *BEFORE* evaluating inputs yourself. You want to get them in front of the human ASAP!
-- Feedback works differently: since there's no running server, the viewer's "Submit All Reviews" button will download `feedback.json` as a file. You can then read it from there (you may have to request access first).
-- Packaging works — `package_skill.py` just needs Python and a filesystem.
-- Description optimization (`run_loop.py` / `run_eval.py`) should work in Cowork just fine since it uses `claude -p` via subprocess, not a browser, but please save it until you've fully finished making the skill and the user agrees it's in good shape.
-
----
-
 ## Reference files
 
 The agents/ directory contains instructions for specialized subagents. Read them when you need to spawn the relevant subagent.
@@ -462,17 +485,6 @@ The references/ directory has additional documentation:
 - `references/schemas.md` — JSON structures for evals.json, grading.json, etc.
 
 ---
-
-Repeating one more time the core loop here for emphasis:
-
-- Figure out what the skill is about
-- Draft or edit the skill
-- Run claude-with-access-to-the-skill on test prompts
-- With the user, evaluate the outputs:
-  - Create benchmark.json and run `eval-viewer/generate_review.py` to help the user review them
-  - Run quantitative evals
-- Repeat until you and the user are satisfied
-- Package the final skill and return it to the user.
 
 Please add steps to your TodoList, if you have such a thing, to make sure you don't forget. If you're in Cowork, please specifically put "Create evals JSON and run `eval-viewer/generate_review.py` so human can review test cases" in your TodoList to make sure it happens.
 

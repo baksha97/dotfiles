@@ -91,7 +91,7 @@ fi
 # ── Agent Skills ──────────────────────────────────────────────────────────────
 # Symlink the skills directory for Copilot CLI, Cursor IDE, and others.
 skills_src="$(cd "$DOTFILES_DIR/meta/.ai-agent/skills" && pwd)"
-for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do
+for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills" "$HOME/.claude/skills"; do
   if [ -L "$target" ]; then
     rm "$target"
   elif [ -d "$target" ]; then

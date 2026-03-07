@@ -1,40 +1,3 @@
-# Usage: gct <branch-name>
-# e.g.   gct travis/CATCH-123/sample
-# If <branch-name> exists on origin, creates a worktree tracking that remote branch.
-# Otherwise, creates a new branch from origin/main, pushes it, and cd's into the worktree.
-# Safe to run from any worktree or the main repo checkout.
-gct() {
-  [[ -n "$1" ]] || { echo "Usage: gct <branch-name>" >&2; return 1; }
-  local branch="$1"
-
-  local toplevel=$(git rev-parse --show-toplevel)
-  local repo_name=$(basename -s .git "$(git remote get-url origin)")
-
-  local safe_branch="${branch//\//-}"
-  local worktree_path="$(dirname "$toplevel")/${repo_name}-${safe_branch}"
-
-  if git fetch origin "$branch" 2>/dev/null; then
-    if git show-ref --verify --quiet "refs/heads/$branch"; then
-      git worktree add "$worktree_path" "$branch" && \
-      cd "$worktree_path"
-    else
-      git worktree add --track -b "$branch" "$worktree_path" "origin/$branch" && \
-      cd "$worktree_path"
-    fi
-  else
-    git fetch origin main && \
-    if git show-ref --verify --quiet "refs/heads/$branch"; then
-      git worktree add "$worktree_path" "$branch" && \
-      cd "$worktree_path" && \
-      git push -u origin HEAD
-    else
-      git worktree add --no-track -b "$branch" "$worktree_path" origin/main && \
-      cd "$worktree_path" && \
-      git push -u origin HEAD
-    fi
-  fi
-}
-
 # _find-skills-src [explicit-path]
 # Resolves the skills source directory. If an explicit path is given, validates and
 # returns it. Otherwise probes well-known project conventions in priority order.
@@ -83,25 +46,18 @@ link-skills() {
   skills_src=$(_find-skills-src "$1") || return 1
   echo "link-skills: using $skills_src"
 
+  # Derive the source namespace (e.g. ".agents" from "/proj/.agents/skills") so we
+  # can skip the matching global dir — tools already scan the project dir directly,
+  # so linking there too would cause duplicate skill conflicts.
+  local src_ns="${${skills_src:h}:t}"
+
   local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills")
 
   for base in "${bases[@]}"; do
-    # If the target is a whole-dir symlink (e.g. from dotfiles setup), expand it
-    # into individual skill symlinks so project skills can coexist with global ones.
-    if [[ -L "$base" ]]; then
-      local global_src=$(readlink "$base")
-      rm "$base"
-      mkdir -p "$base"
-      for global_skill in "$global_src"/*/; do
-        [[ -d "$global_skill" ]] || continue
-        ln -s "$global_skill" "$base/$(basename "$global_skill")"
-      done
-    else
-      mkdir -p "$base"
-    fi
-
+    [[ "${${base:h}:t}" == "$src_ns" ]] && continue
+    mkdir -p "$base"
     for skill in "$skills_src"/*/; do
-      skill="${skill%/}"   # strip trailing slash added by glob
+      skill="${skill%/}"
       [[ -d "$skill" ]] || continue
       local name=$(basename "$skill")
       local link="$base/$name"
@@ -119,6 +75,7 @@ unlink-skills() {
   local skills_src
   skills_src=$(_find-skills-src "$1") || return 1
 
+  local src_ns="${${skills_src:h}:t}"
   local -a bases=("$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills")
 
   for skill in "$skills_src"/*/; do
@@ -126,6 +83,7 @@ unlink-skills() {
     [[ -d "$skill" ]] || continue
     local name=$(basename "$skill")
     for base in "${bases[@]}"; do
+      [[ "${${base:h}:t}" == "$src_ns" ]] && continue
       local link="$base/$name"
       if [[ -L "$link" && "$(readlink "$link")" == "$skill" ]]; then
         rm "$link"
@@ -133,32 +91,4 @@ unlink-skills() {
       fi
     done
   done
-}
-
-# Usage: grmt [--force|-f] [<worktree-path>]
-# With no args, removes the worktree you're currently in.
-# With a path arg, removes that worktree instead.
-# Either way, cd's to the main repo root afterwards.
-grmt() {
-  local force_flag=""
-  if [[ "$1" == "--force" || "$1" == "-f" ]]; then
-    force_flag="--force"
-    shift
-  fi
-
-  local target="${1:-$(git rev-parse --show-toplevel)}"
-  target="${target:A}"  # resolve to absolute/canonical path
-
-  local main_worktree=$(git -C "$target" worktree list --porcelain | head -1 | sed 's/^worktree //')
-
-  if [[ "${target}" = "${main_worktree}" ]]; then
-    echo "grmt: '$target' is the main repo checkout, not a worktree" >&2
-    return 1
-  fi
-
-  if [[ -n "$force_flag" ]]; then
-    cd "$main_worktree" && git worktree remove --force "$target"
-  else
-    cd "$main_worktree" && git worktree remove "$target"
-  fi
 }

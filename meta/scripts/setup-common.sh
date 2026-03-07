@@ -42,134 +42,49 @@ if [ -d "$DOTFILES_DIR/alacritty" ] && [ ! -L "$DOTFILES_DIR/alacritty" ]; then
   echo "  Removed old alacritty/ folder"
 fi
 
-# Back up real files (not symlinks) before removing, then clean up all targets
-stow_targets=(
-  "$HOME/.zshrc"
-  "$HOME/.zshrc.d"
-  "$HOME/.p10k.zsh"
-  "$HOME/.tmux.conf"
-  "$HOME/.gitconfig"
-  "$HOME/.gitignore"
-  "$HOME/.gitconfig-profile"
-  "$HOME/profiles"
-)
+# ── Stow helpers ─────────────────────────────────────────────────────────────
 
-for target in "${stow_targets[@]}"; do
+# stow_backup TARGET
+# If TARGET is a real file/dir (not a symlink), back it up and remove it.
+# If TARGET is a symlink, just remove it (no backup needed — already managed).
+stow_backup() {
+  local target="$1"
   if [ -e "$target" ] && [ ! -L "$target" ]; then
-    if [ "$backed_up" = false ]; then
-      mkdir -p "$backup_dir"
-      backed_up=true
-    fi
+    [ "$backed_up" = false ] && mkdir -p "$backup_dir" && backed_up=true
     cp -R "$target" "$backup_dir/"
   fi
   rm -rf "$target"
-done
+}
 
-# Handle ~/.config separately: if it's a stale symlink (from old flat layout), remove it.
-# If it's a real directory, only remove the alacritty subdirectory if not already stow-managed.
-# stow --no-folding creates ~/.config/alacritty/ as a real dir with symlinks inside —
-# do not wipe it on every run.
-if [ -L "$HOME/.config" ]; then
-  rm "$HOME/.config"
-elif [ -L "$HOME/.config/alacritty" ]; then
-  # Stale folded symlink from old layout — remove so stow can create the real dir.
-  rm "$HOME/.config/alacritty"
-elif [ -d "$HOME/.config/alacritty" ]; then
-  if ! find "$HOME/.config/alacritty" -maxdepth 2 -type l -print -quit | grep -q .; then
-    if [ "$backed_up" = false ]; then
-      mkdir -p "$backup_dir"
-      backed_up=true
-    fi
-    cp -R "$HOME/.config/alacritty" "$backup_dir/"
-    rm -rf "$HOME/.config/alacritty"
-  fi
-  # else: already stow-managed (contains symlinks) — leave it; stow will skip correct links
-fi
+# stow_package PKG [FLAGS...]
+# Run stow for PKG against STOW_TARGET (defaults to $HOME).
+# Callers set STOW_TARGET before calling when a non-$HOME target is needed.
+stow_package() {
+  local pkg="$1"; shift
+  local target="${STOW_TARGET:-$HOME}"
+  stow -d "$DOTFILES_DIR/stow" "$pkg" -t "$target" --adopt "$@"
+}
+
+# ── Stow packages ─────────────────────────────────────────────────────────────
+# Each file in stow.d/ installs one stow package. Adding a new package = add one file.
+STOW_D="$DOTFILES_DIR/meta/scripts/stow.d"
+for f in "$STOW_D/"*.sh; do
+  unset STOW_TARGET
+  [ -f "$f" ] && source "$f"
+done
 
 if [ "$backed_up" = true ]; then
   echo "  Backed up existing configs to $backup_dir/"
 fi
 
-stow -d stow zsh -t "$HOME" --adopt
-stow -d stow powerlevel10k -t "$HOME" --adopt
-stow -d stow tmux -t "$HOME" --adopt
-stow -d stow alacritty -t "$HOME" --adopt --no-folding
-
-# Claude Code settings
-claude_dir="$HOME/.claude"
-mkdir -p "$claude_dir"
-
-# Files: backup if real, always remove so stow can (re-)link.
-claude_stow_files=(settings.json status-line.sh README.md)
-for f in "${claude_stow_files[@]}"; do
-  target="$claude_dir/$f"
-  if [ -e "$target" ] && [ ! -L "$target" ]; then
-    if [ "$backed_up" = false ]; then
-      mkdir -p "$backup_dir"
-      backed_up=true
-    fi
-    cp "$target" "$backup_dir/"
-  fi
-  rm -f "$target"
-done
-
-# Directories: stow --no-folding creates real dirs with symlinks inside.
-# Only backup+remove on first run (no symlinks yet); subsequent runs skip cleanup
-# and let stow skip the already-correct symlinks inside.
-claude_stow_dirs=(commands agents scripts)
-for d in "${claude_stow_dirs[@]}"; do
-  target="$claude_dir/$d"
-  if [ -d "$target" ] && [ ! -L "$target" ]; then
-    if ! find "$target" -maxdepth 3 -type l -print -quit | grep -q .; then
-      if [ "$backed_up" = false ]; then
-        mkdir -p "$backup_dir"
-        backed_up=true
-      fi
-      cp -R "$target" "$backup_dir/"
-      rm -rf "$target"
-    fi
-    # else: already stow-managed — leave in place; stow will skip correct symlinks
-  fi
-done
-
-stow -d stow claude -t "$claude_dir" --adopt --no-folding
-
-# VSCode settings — only stow if VSCode/Cursor is actually installed
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  vscode_dir="$HOME/Library/Application Support/Code/User"
-elif [[ "$OSTYPE" == "linux-gnu"* ]] && command -v code &>/dev/null; then
-  vscode_dir="$HOME/.config/Code/User"
-fi
-
-if [ -n "$vscode_dir" ]; then
-  mkdir -p "$vscode_dir"
-  vscode_stow_files=(.vscode keybindings.json settings.json)
-  for f in "${vscode_stow_files[@]}"; do
-    target="$vscode_dir/$f"
-    if [ -e "$target" ] && [ ! -L "$target" ]; then
-      if [ "$backed_up" = false ]; then
-        mkdir -p "$backup_dir"
-        backed_up=true
-      fi
-      cp -R "$target" "$backup_dir/"
-    fi
-    rm -rf "$target"
-  done
-  stow -d stow vscode -t "$vscode_dir" --adopt
-fi
-
-# Git configuration
-cp "stow/git/profiles/$profile" stow/git/.gitconfig-profile
-stow -d stow git -t "$HOME"/ --adopt
-echo "  Git profile set to '$profile'"
-
-# GitHub CLI authentication setup
+# ── GitHub CLI credential helper ──────────────────────────────────────────────
 if command -v gh &>/dev/null && gh auth status &>/dev/null; then
   echo "  Ensuring GitHub CLI git-credential helper is linked..."
   gh auth setup-git
 fi
 
-# Agent Skills — symlink the skills directory for Copilot CLI, Cursor IDE, and others
+# ── Agent Skills ──────────────────────────────────────────────────────────────
+# Symlink the skills directory for Copilot CLI, Cursor IDE, and others.
 skills_src="$(cd meta/.ai-agent/skills && pwd)"
 for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do
   if [ -L "$target" ]; then

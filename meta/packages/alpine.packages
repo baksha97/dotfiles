@@ -1,0 +1,16 @@
+ca-certificates
+curl
+git
+git-lfs
+stow
+zsh
+tmux
+fzf
+jq
+rclone
+fontconfig
+unzip
+zip
+aria2
+ffmpeg
+perl-image-exiftool

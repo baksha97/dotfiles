@@ -71,7 +71,10 @@ done
 # do not wipe it on every run.
 if [ -L "$HOME/.config" ]; then
   rm "$HOME/.config"
-elif [ -d "$HOME/.config/alacritty" ] && [ ! -L "$HOME/.config/alacritty" ]; then
+elif [ -L "$HOME/.config/alacritty" ]; then
+  # Stale folded symlink from old layout — remove so stow can create the real dir.
+  rm "$HOME/.config/alacritty"
+elif [ -d "$HOME/.config/alacritty" ]; then
   if ! find "$HOME/.config/alacritty" -maxdepth 2 -type l -print -quit | grep -q .; then
     if [ "$backed_up" = false ]; then
       mkdir -p "$backup_dir"

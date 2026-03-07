@@ -10,8 +10,6 @@ NC='\033[0m'
 info()    { echo -e "${GREEN}==>${NC} $*"; }
 section() { echo -e "\n${YELLOW}>>> $*${NC}"; }
 
-PLUGINS_JSON="${HOME}/.claude/plugins/installed_plugins.json"
-
 # 1. Update all marketplaces
 section "Updating marketplaces"
 claude plugin marketplace update

@@ -19,8 +19,6 @@
       "Bash(codex:*)"
     ],
     "deny": [
-      // "Bash(rm -rf:*)",
-      // "Bash(rm -fr:*)",
       "Read(.env)",
       "Read(.env.*)",
       "Read(**/.env)",

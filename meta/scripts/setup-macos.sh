@@ -5,7 +5,7 @@ set -e
 
 profile="${1:-personal}"
 
-if [ ! -f "stow/git/profiles/$profile" ]; then
+if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
   echo "Error: profile '$profile' not found in stow/git/profiles/"
   exit 1
 fi
@@ -28,7 +28,7 @@ elif [[ -x "/usr/local/bin/brew" ]]; then
 fi
 
 brew update
-brew bundle --verbose --file="meta/homebrew/Brewfile.$profile"
+brew bundle --verbose --file="$DOTFILES_DIR/meta/homebrew/Brewfile.$profile"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/setup-common.sh"

@@ -9,7 +9,7 @@ LIB="$DOTFILES_DIR/meta/scripts/lib"
 INSTALL_D="$DOTFILES_DIR/meta/scripts/install.d"
 
 profile="${1:-personal}"
-if [ ! -f "stow/git/profiles/$profile" ]; then
+if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
   echo "Error: profile '$profile' not found in stow/git/profiles/"
   exit 1
 fi

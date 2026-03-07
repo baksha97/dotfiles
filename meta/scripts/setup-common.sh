@@ -11,9 +11,9 @@ if [ ! -d "$HOME/.sdkman" ]; then
 fi
 
 # Clean up .DS_Store files that cause stow conflicts on macOS
-find . -name .DS_Store -delete
+find "$DOTFILES_DIR" -name .DS_Store -delete
 
-backup_dir="backup/$(date +%Y-%m-%d_%H-%M-%S)"
+backup_dir="$DOTFILES_DIR/backup/$(date +%Y-%m-%d_%H-%M-%S)"
 backed_up=false
 
 # Migrate old layout: root alacritty/ folder was the former stow package, which caused
@@ -88,7 +88,7 @@ fi
 
 # ── Agent Skills ──────────────────────────────────────────────────────────────
 # Symlink the skills directory for Copilot CLI, Cursor IDE, and others.
-skills_src="$(cd meta/.ai-agent/skills && pwd)"
+skills_src="$(cd "$DOTFILES_DIR/meta/.ai-agent/skills" && pwd)"
 for target in "$HOME/.copilot/skills" "$HOME/.cursor/skills" "$HOME/.agents/skills"; do
   if [ -L "$target" ]; then
     rm "$target"

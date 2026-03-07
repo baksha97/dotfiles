@@ -3,6 +3,7 @@
 set -e
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+export DOTFILES_DIR
 cd "$DOTFILES_DIR"
 
 usage() {

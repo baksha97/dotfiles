@@ -34,7 +34,7 @@ brew "kdoctor"
 brew "lazygit", link: false
 brew "libmicrohttpd"
 brew "librist"
-brew "n"
+brew "nvm"
 brew "ollama"
 brew "ruff"
 brew "rustup"

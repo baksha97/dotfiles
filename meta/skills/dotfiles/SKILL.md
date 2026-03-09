@@ -13,7 +13,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
 - **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
-- **`AGENT.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
+- **`AGENTS.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
 
 ## High-Traction Files
 
@@ -23,7 +23,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `stow/zsh/.zshrc.d/00-path.zsh` | All `$PATH` exports, tool-specific path entries |
 | `stow/zsh/.zshrc.d/50-aliases.zsh` | Shell aliases |
 | `stow/zsh/.zshrc.d/50-keybindings.zsh` | Zsh keybindings (`bindkey`) |
-| `stow/zsh/.zshrc.d/50-utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking), `link-agent-md` (ensure AGENT.md is canonical, CLAUDE.md symlinks to it) |
+| `stow/zsh/.zshrc.d/50-utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking), `link-agent-md` (ensure AGENTS.md is canonical, CLAUDE.md symlinks to it) |
 | `stow/zsh/.zshrc.d/50-utils-worktree.zsh` | Git worktree helpers (`gct`, `grmt`) |
 | `stow/zsh/.zshrc.d/50-integrations.zsh` | Tool integrations (fzf, etc.) |
 | `stow/zsh/.zshrc.d/50-zinit.zsh` | Zinit plugin manager + plugins + compinit |
@@ -127,7 +127,7 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 
 `link-skills` / `unlink-skills` in `utils-ai.zsh` are a separate concern — they handle **project-local** skill linking within a repo, not the global dotfiles skills.
 
-`link-agent-md` in `utils-ai.zsh` ensures `AGENT.md` is the canonical instructions file and `CLAUDE.md` is a symlink to it. If `CLAUDE.md` has the content, it migrates it to `AGENT.md` and creates the symlink. Run from the project root — no arguments needed.
+`link-agent-md` in `utils-ai.zsh` ensures `AGENTS.md` is the canonical instructions file and `CLAUDE.md` is a symlink to it. If `CLAUDE.md` has the content, it migrates it to `AGENTS.md` and creates the symlink. Run from the project root — no arguments needed.
 
 ## Conventions Checklist
 

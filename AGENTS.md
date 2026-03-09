@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file for Claude Code compatibility.
 

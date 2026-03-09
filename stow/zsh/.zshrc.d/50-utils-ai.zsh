@@ -81,30 +81,30 @@ link-skills() {
 }
 
 link-agent-md() {
-  if [[ ! -f CLAUDE.md && ! -f AGENT.md ]]; then
-    echo "link-agent-md: no CLAUDE.md or AGENT.md found in current directory" >&2
+  if [[ ! -f CLAUDE.md && ! -f AGENTS.md ]]; then
+    echo "link-agent-md: no CLAUDE.md or AGENTS.md found in current directory" >&2
     return 1
   fi
 
-  # Already correct: AGENT.md is a real file, CLAUDE.md symlinks to it
-  if [[ -f AGENT.md && ! -L AGENT.md && -L CLAUDE.md ]]; then
-    echo "link-agent-md: already set up (CLAUDE.md -> AGENT.md)"
+  # Already correct: AGENTS.md is a real file, CLAUDE.md symlinks to it
+  if [[ -f AGENTS.md && ! -L AGENTS.md && -L CLAUDE.md ]]; then
+    echo "link-agent-md: already set up (CLAUDE.md -> AGENTS.md)"
     return 0
   fi
 
-  # Migrate: CLAUDE.md has the content, move it to AGENT.md
+  # Migrate: CLAUDE.md has the content, move it to AGENTS.md
   if [[ -f CLAUDE.md && ! -L CLAUDE.md ]]; then
-    if [[ -f AGENT.md && ! -L AGENT.md ]]; then
-      echo "link-agent-md: both CLAUDE.md and AGENT.md are real files — resolve manually" >&2
+    if [[ -f AGENTS.md && ! -L AGENTS.md ]]; then
+      echo "link-agent-md: both CLAUDE.md and AGENTS.md are real files — resolve manually" >&2
       return 1
     fi
-    rm -f AGENT.md
-    mv CLAUDE.md AGENT.md
-    echo "link-agent-md: moved CLAUDE.md -> AGENT.md"
+    rm -f AGENTS.md
+    mv CLAUDE.md AGENTS.md
+    echo "link-agent-md: moved CLAUDE.md -> AGENTS.md"
   fi
 
-  ln -sf AGENT.md CLAUDE.md
-  echo "link-agent-md: CLAUDE.md -> AGENT.md"
+  ln -sf AGENTS.md CLAUDE.md
+  echo "link-agent-md: CLAUDE.md -> AGENTS.md"
 }
 
 unlink-skills() {

@@ -1,6 +1,6 @@
 ---
 name: dotfiles
-description: Expert guidance for managing and evolving this dotfiles repo. Covers the GNU Stow architecture, composition patterns, and the high-traction areas most likely to need updates: PATH configuration, zsh utilities, keybindings, aliases, skills symlinks, stow packages, and install scripts. Use when the user asks to add, change, or debug anything in this dotfiles repo.
+description: Guidance for managing the dotfiles repo — the single source of truth for shell, editor, git, and agent configurations. This skill is globally linked, so all changes that this repo is responsible for must target the dotfiles repo root, not local copies. Covers GNU Stow architecture, composition patterns, and high-traction areas: PATH, zsh utilities, keybindings, aliases, skills, stow packages, and install scripts. Use when the user asks to add, change, or debug dotfiles, shell, zsh, aliases.
 ---
 
 # Dotfiles Management Skill
@@ -11,8 +11,9 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 
 - **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; `stow -d stow <pkg> -t $HOME --adopt` creates the links.
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
-- **Profiles** (`personal` / `work`): control git identity and macOS Brewfile only.
+- **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
+- **`AGENT.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
 
 ## High-Traction Files
 
@@ -21,15 +22,15 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `stow/zsh/.zshrc.d/00-path.zsh` | All `$PATH` exports, tool-specific path entries |
 | `stow/zsh/.zshrc.d/aliases.zsh` | Shell aliases |
 | `stow/zsh/.zshrc.d/keybindings.zsh` | Zsh keybindings (`bindkey`) |
-| `stow/zsh/.zshrc.d/utils-ai.zsh` | `link-skills`, `unlink-skills`, `_find-skills-src` |
-| `stow/zsh/.zshrc.d/utils-worktree.zsh` | Git worktree helpers |
+| `stow/zsh/.zshrc.d/utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking) |
+| `stow/zsh/.zshrc.d/utils-worktree.zsh` | Git worktree helpers (`gct`, `grmt`) |
 | `stow/zsh/.zshrc.d/integrations.zsh` | Tool integrations (zoxide, fzf, etc.) |
 | `stow/zsh/.zshrc.d/zinit.zsh` | Zinit plugin manager + plugins |
-| `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, git profile, agent skills symlinks |
-| `meta/scripts/stow.d/` | One `.sh` per stow package |
+| `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, agent skills symlinks |
+| `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | CLI tool installers for Linux + Alpine |
 | `meta/scripts/install.d/linux/` | Debian/Ubuntu-only installers |
-| `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `github.sh` |
+| `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `github.sh`, `profile.sh` |
 | `meta/packages/linux.packages` | apt package list |
 | `meta/packages/alpine.packages` | apk package list |
 | `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
@@ -96,17 +97,20 @@ stow_package tool
 
 - `stow_backup`: backs up real files, silently removes symlinks
 - `stow_package`: runs stow against `$STOW_TARGET` (defaults to `$HOME`)
-- Set `STOW_TARGET` before calling `stow_package` for non-`$HOME` targets (e.g., VSCode)
+- Set `STOW_TARGET` before calling `stow_package` for non-`$HOME` targets (e.g., claude, vscode)
 
-## Agent Skills Symlinks
+## Agent Skills
 
-Skills in `meta/skills/` are symlinked to multiple targets during setup. **All four locations must stay in sync** whenever adding a new target:
+Global skills live in `meta/skills/`. During setup, this directory is symlinked to multiple tool-specific locations:
 
-1. `meta/scripts/setup-common.sh` — the `for target in ...` loop (global whole-dir symlink)
-2. `stow/zsh/.zshrc.d/utils-ai.zsh` — `bases` array in `link-skills` (per-skill symlinks)
-3. `stow/zsh/.zshrc.d/utils-ai.zsh` — `bases` array in `unlink-skills`
+- `~/.copilot/skills`
+- `~/.cursor/skills`
+- `~/.agents/skills`
+- `~/.claude/skills`
 
-Current targets: `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`, `~/.claude/skills`
+The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for target in ...` loop). Adding a new skill directory under `meta/skills/` is picked up automatically — no re-run needed since the whole directory is symlinked.
+
+`link-skills` / `unlink-skills` in `utils-ai.zsh` are a separate concern — they handle **project-local** skill linking within a repo, not the global dotfiles skills.
 
 ## Conventions Checklist
 

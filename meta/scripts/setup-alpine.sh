@@ -8,11 +8,14 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 LIB="$DOTFILES_DIR/meta/scripts/lib"
 INSTALL_D="$DOTFILES_DIR/meta/scripts/install.d"
 
-profile="${1:-personal}"
+source "$LIB/profile.sh"
+
+profile="$(resolve_profile "${1:-}")"
 if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
   echo "Error: profile '$profile' not found in stow/git/profiles/"
   exit 1
 fi
+echo "Using profile: $profile"
 
 source "$LIB/sudo.sh"
 source "$LIB/arch.sh"

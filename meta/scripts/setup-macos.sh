@@ -3,12 +3,15 @@
 
 set -e
 
-profile="${1:-personal}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/profile.sh"
 
+profile="$(resolve_profile "${1:-}")"
 if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
   echo "Error: profile '$profile' not found in stow/git/profiles/"
   exit 1
 fi
+echo "Using profile: $profile"
 
 # Show hidden files in Finder
 defaults write com.apple.finder AppleShowAllFiles YES
@@ -30,5 +33,4 @@ fi
 brew update
 brew bundle --verbose --file="$DOTFILES_DIR/meta/homebrew/Brewfile.$profile"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/setup-common.sh"

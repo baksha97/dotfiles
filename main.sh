@@ -11,7 +11,7 @@ usage() {
 Usage: ./main.sh <command> [options]
 
 Commands:
-  setup [profile]          Bootstrap the system (auto-detects OS, default profile: personal)
+  setup [profile]          Bootstrap the system (auto-detects OS and profile on re-run)
   brew backup [profile]    Dump current Homebrew state to meta/homebrew/Brewfile.<profile>
   alacritty-icon           Replace the Alacritty app icon
 
@@ -19,10 +19,11 @@ Profiles:
   Profiles control git identity (and Homebrew packages on macOS).
   Available profiles are defined in stow/git/profiles/.
   On macOS each profile has a matching meta/homebrew/Brewfile.<profile>.
+  On re-runs the active profile is auto-detected; pass a name to switch.
 
 Examples:
-  ./main.sh setup              # full setup with "personal" profile
-  ./main.sh setup work         # full setup with "work" profile
+  ./main.sh setup              # full setup (auto-detects profile, defaults to "personal")
+  ./main.sh setup work         # full setup with "work" profile (switches if different)
   ./main.sh brew backup        # dump Homebrew state to meta/homebrew/Brewfile.personal
   ./main.sh brew backup work   # dump Homebrew state to meta/homebrew/Brewfile.work
   ./main.sh alacritty-icon     # replace Alacritty icon

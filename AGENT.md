@@ -5,7 +5,7 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 ## Commands
 
 ```bash
-./main.sh setup [profile]        # Bootstrap the system — auto-detects OS (default: personal)
+./main.sh setup [profile]        # Bootstrap the system — auto-detects OS, auto-detects profile on re-run
 ./main.sh brew backup [profile]  # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
 ./main.sh alacritty-icon         # Replace Alacritty app icon
 ./main.sh install <pkg> [sub]    # Non-symlink "merge" installer (skills, zsh, fonts, git, all)
@@ -21,6 +21,8 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
 3. **Linux/Alpine**: Uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile
+
+On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles.
 
 **VSCode/Cursor** stow target is platform-specific (`~/Library/Application Support/Code/User` on macOS, `~/.config/Code/User` on Linux), not `$HOME`.
 
@@ -109,6 +111,7 @@ stow_package tool
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
+| `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
 | `meta/scripts/install.d/shared/` | Tool installers for Linux + Alpine |
 | `meta/scripts/install.d/linux/` | Debian/Ubuntu-specific tool installers |
 | `meta/scripts/install.d/linux-gui/` | GUI app installers (headful only) |

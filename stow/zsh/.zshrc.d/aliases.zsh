@@ -7,3 +7,4 @@ alias gc='git commit -m'
 alias gp='git push'
 alias gac='ga . && gc'
 gacp() { ga . && gc -m "$1" && git push; }
+alias clauded="claude --dangerously-skip-permissions"

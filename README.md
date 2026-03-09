@@ -24,31 +24,14 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 ```bash
 git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./main.sh setup          # full setup with "personal" profile (default)
+./main.sh setup          # full setup (auto-detects profile, defaults to "personal")
 ./main.sh setup work     # full setup with "work" profile
-```
-
-### Standalone Installer (Non-Symlink)
-
-If you prefer a "merge" approach (copying files instead of symlinking), use the standalone installer:
-
-```bash
-./main.sh install all             # Merge skills, zsh utils, fonts, and git profiles
-./main.sh install skills [name]   # Install all or a specific agent skill
-./main.sh install zsh [name]      # Install all or a specific zsh utility
-./main.sh install fonts           # Install Nerd Fonts only
-./main.sh install git             # Install git profiles only
-
-# Examples:
-./main.sh install zsh utils       # Install only utils.zsh
-./main.sh install skills coroutines # Install android-coroutines skill
 ```
 
 ### All Commands
 
 ```bash
-./main.sh setup [profile]        # bootstrap the system (default profile: personal)
-./main.sh install <pkg> [sub]    # non-symlink "merge" installer (skills, zsh, fonts, git, all)
+./main.sh setup [profile]        # bootstrap the system (auto-detects OS and profile on re-run)
 ./main.sh brew backup [profile]  # dump current Homebrew state to Brewfile.<profile>
 ./main.sh alacritty-icon         # replace the Alacritty app icon
 ```
@@ -96,6 +79,7 @@ dotfiles/
 │   │       │   └── themes/        # 130+ color themes
 │   │       ├── linearmouse/       # macOS mouse configuration
 │   │       └── git/               # Git ignore templates
+│   ├── claude/                    # Claude Code settings, commands, agents, scripts
 │   ├── git/                       # Git config and profiles
 │   │   ├── .gitconfig
 │   │   ├── .gitignore             # Global gitignore
@@ -124,7 +108,8 @@ dotfiles/
         ├── lib/                    # Shared utilities (sourced first by platform scripts)
         │   ├── arch.sh             # ARCH_GO / ARCH_MUSL detection
         │   ├── sudo.sh             # SUDO prefix detection
-        │   └── github.sh           # gh_latest_version() helper
+        │   ├── github.sh           # gh_latest_version() helper
+        │   └── profile.sh          # resolve_profile() — auto-detect or accept explicit
         ├── install.d/              # Per-tool installers (one file = one tool)
         │   ├── shared/             # Tools for all Linux-family platforms
         │   ├── linux/              # Debian/Ubuntu-only tools
@@ -149,6 +134,7 @@ All stow packages live under `stow/`. The table below shows where each package's
 | `tmux` | `.tmux.conf` | `$HOME` |
 | `alacritty` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` | `$HOME` |
 | `git` | `.gitconfig`, `.gitignore` | `$HOME` |
+| `claude` | `settings.json`, `status-line.sh`, `commands/`, `agents/`, `scripts/` | `~/.claude/` |
 | `vscode` | `settings.json`, `keybindings.json` | Platform-specific VS Code `User/` directory |
 
 VS Code target paths:
@@ -159,7 +145,7 @@ VS Code target paths:
 
 The `setup` command performs these steps in order:
 
-1. **Validate profile** — ensures the selected profile exists in `stow/git/profiles/`
+1. **Resolve profile** — auto-detects from previous setup or uses explicit argument (defaults to `personal`)
 2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
 3. **Platform-specific package installation:**
    - **macOS**: Install Homebrew (if missing), then install from `meta/homebrew/Brewfile.<profile>`
@@ -208,15 +194,17 @@ The `setup` command performs these steps in order:
 
 ## Profiles
 
-Profiles control which Homebrew packages are installed on macOS. The selected profile determines which Brewfile is used during setup. Linux and Alpine use the same package lists regardless of profile. The default profile is `personal`.
+Profiles control git identity and (on macOS) which Homebrew packages are installed. Linux and Alpine use the same package lists regardless of profile.
+
+On re-runs, the active profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles. Fresh machines default to `personal`.
 
 Available profiles:
 - `personal` — Full macOS setup with GUI apps
 - `work` — Work environment setup
 
 ```bash
-./main.sh setup          # uses "personal"
-./main.sh setup work     # uses "work"
+./main.sh setup          # auto-detects profile (defaults to "personal" on fresh machines)
+./main.sh setup work     # uses "work" profile (switches if different)
 ```
 
 ### Homebrew Packages (macOS only)
@@ -240,6 +228,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 
 | Tool | Discovery Path |
 |------|---------------|
+| **Claude Code** | `~/.claude/skills` |
 | **Copilot CLI** | `~/.copilot/skills` |
 | **Cursor IDE** | `~/.cursor/skills` |
 | **Common Agent Path** | `~/.agents/skills` |
@@ -248,11 +237,10 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 
 | Skill | Purpose |
 |-------|---------|
-| `android-coroutines` | Kotlin Coroutines patterns for Android |
-| `android-emulator-skill` | Android build, test, and emulator automation |
-| `android-gradle-logic` | Convention Plugins and Version Catalogs |
-| `gradle-build-performance` | Build performance debugging and optimization |
-| `kotlin-concurrency-expert` | Coroutine review and thread safety remediation |
+| `doc-coauthoring` | Structured workflow for co-authoring documentation |
+| `dotfiles` | Expert guidance for managing this dotfiles repo |
+| `my-voice` | Internal communications in Travis's voice |
+| `skill-creator` | Create, modify, and evaluate agent skills |
 
 To add a new skill, create a directory under `meta/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
 
@@ -376,27 +364,15 @@ Replaces the default Alacritty icon with a custom one from [macOSicons](https://
 ./main.sh alacritty-icon
 ```
 
-### `main.sh install`
-
-The standalone non-symlink "merge" installer. Useful for environments where symlinks are restricted or a simple copy-based setup is preferred.
-
-```bash
-./main.sh install all        # Run all merge operations
-./main.sh install skills     # Merge Agent Skills into Copilot/Cursor paths
-./main.sh install zsh        # Install Zsh utilities and update .zshrc
-./main.sh install fonts      # Install Nerd Fonts (JetBrainsMono, FiraCode, Meslo)
-./main.sh install git        # Install Git profiles to ~/profiles/
-```
-
 ## Custom Shell Functions
 
 ### `link-skills` / `unlink-skills` — Project Skill Linking
 
-Link a project's agent skills into the standard discovery paths (`~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`) without modifying dotfiles. Run from the repo root — the source directory is auto-discovered from common conventions:
+Link a project's agent skills into the project-local discovery paths (`.claude/skills/`, `.agents/skills/`) without modifying dotfiles. Run from the repo root — the source directory is auto-discovered from common conventions:
 
 | Priority | Path | Convention |
 |----------|------|------------|
-| 1 | `.ai-agent/skills/` | This dotfiles repo |
+| 1 | `.ai-agent/skills/` | Generic agent skills |
 | 2 | `.claude/skills/` | Claude Code |
 | 3 | `.agents/skills/` | Generic agents |
 | 4 | `.github/skills/` | GitHub ecosystem |
@@ -413,7 +389,7 @@ link-skills path/to/skills
 unlink-skills
 ```
 
-If the target paths are currently whole-dir symlinks (as set up by `./main.sh setup`), `link-skills` expands them into individual per-skill symlinks first so global dotfiles skills and project skills coexist. `unlink-skills` uses `readlink` to only remove links it owns.
+`link-skills` creates relative per-skill symlinks within the project. `unlink-skills` uses `readlink` to only remove links it created.
 
 ### `gct` — Git Create Worktree
 

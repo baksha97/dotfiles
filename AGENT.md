@@ -8,7 +8,6 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 ./main.sh setup [profile]        # Bootstrap the system — auto-detects OS, auto-detects profile on re-run
 ./main.sh brew backup [profile]  # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
 ./main.sh alacritty-icon         # Replace Alacritty app icon
-./main.sh install <pkg> [sub]    # Non-symlink "merge" installer (skills, zsh, fonts, git, all)
 ```
 
 `main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh`, `setup-linux.sh`, and `setup-alpine.sh`, with shared logic in `setup-common.sh`.
@@ -17,10 +16,11 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 
 **GNU Stow** is the core mechanism. Each directory under `stow/` mirrors `$HOME` and gets symlinked there via `stow -d stow <pkg> -t "$HOME" --adopt`. The `--adopt` flag moves pre-existing files into the repo and creates symlinks in place.
 
-**Profiles** (`personal` / `work`) control two things:
+**Profiles** (`personal` / `work`) control:
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
-3. **Linux/Alpine**: Uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile
+
+Linux/Alpine uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
 
 On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles.
 
@@ -49,6 +49,7 @@ meta/scripts/
     arch.sh                # ARCH_GO / ARCH_MUSL detection (exported)
     sudo.sh                # SUDO prefix detection (exported)
     github.sh              # gh_latest_version() helper function
+    profile.sh             # resolve_profile() — auto-detect or accept explicit profile
   install.d/               # Per-tool installers (sourced in alphabetical order)
     shared/                # Tools installed on all Linux-family platforms
     linux/                 # Debian/Ubuntu-only tools
@@ -85,7 +86,7 @@ stow_package tool
 ## Linux/Alpine Install Details
 
 **Linux** (`setup-linux.sh`) installs in this order:
-1. Source `lib/` utilities (arch, sudo, github helpers)
+1. Source `lib/` utilities (profile, arch, sudo, github helpers)
 2. **apt packages** from `meta/packages/linux.packages`
 3. Change shell to zsh
 4. Source `install.d/shared/*.sh` then `install.d/linux/*.sh` (each tool guards with `command -v && return 0`)

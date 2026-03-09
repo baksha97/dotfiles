@@ -70,8 +70,12 @@ link-skills() {
       local name=$(basename "$skill")
       local link="$target/$name"
       [[ -L "$link" ]] && rm "$link"
-      ln -s "$skill" "$link"
-      echo "  Linked $link -> $skill"
+      local rel_skill="${skill#$project_root/}"
+      local -a depth=("${(@s:/:)${target#$project_root/}}")
+      local dd="../"
+      local up="${(j::)${(@)depth/*/$dd}}"
+      ln -s "${up}${rel_skill}" "$link"
+      echo "  Linked $link -> ${up}${rel_skill}"
     done
   done
 }
@@ -91,7 +95,11 @@ unlink-skills() {
       local target="$project_root/$conv"
       [[ "${${target:h}:t}" == "$src_ns" ]] && continue
       local link="$target/$name"
-      if [[ -L "$link" && "$(readlink "$link")" == "$skill" ]]; then
+      local rel_skill="${skill#$project_root/}"
+      local -a depth=("${(@s:/:)${target#$project_root/}}")
+      local dd="../"
+      local up="${(j::)${(@)depth/*/$dd}}"
+      if [[ -L "$link" && "$(readlink "$link")" == "${up}${rel_skill}" ]]; then
         rm "$link"
         echo "  Unlinked $link"
       fi

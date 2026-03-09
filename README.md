@@ -113,8 +113,7 @@ dotfiles/
 │       ├── .zshrc                 # Sources all .zshrc.d/*.zsh (reference pattern)
 │       └── .zshrc.d/              # Modular zsh configurations
 └── meta/                          # Support files (not stowed)
-    ├── .ai-agent/                 # AI coding agent configuration
-    │   └── skills/
+    ├── skills/                    # AI coding agent skills (symlinked to tool paths)
     ├── homebrew/                   # Homebrew package management (macOS only)
     │   ├── Brewfile.personal
     │   └── Brewfile.work
@@ -237,7 +236,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 
 ## Agent Skills
 
-[Agent Skills](https://agentskills.io/) are `SKILL.md` packages that give AI coding agents specialized domain knowledge. The setup script symlinks the `meta/.ai-agent/skills/` directory so multiple tools discover them automatically:
+[Agent Skills](https://agentskills.io/) are `SKILL.md` packages that give AI coding agents specialized domain knowledge. The setup script symlinks the `meta/skills/` directory so multiple tools discover them automatically:
 
 | Tool | Discovery Path |
 |------|---------------|
@@ -255,7 +254,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 | `gradle-build-performance` | Build performance debugging and optimization |
 | `kotlin-concurrency-expert` | Coroutine review and thread safety remediation |
 
-To add a new skill, create a directory under `meta/.ai-agent/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
+To add a new skill, create a directory under `meta/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
 
 ## Shell Configuration
 

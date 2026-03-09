@@ -4,7 +4,8 @@
     "DISABLE_TELEMETRY": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0"
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "_Z0_DOCTOR": "0"
   },
   "permissions": {
     "allow": [
@@ -19,10 +20,6 @@
       "Bash(codex:*)"
     ],
     "deny": [
-      "Read(.env)",
-      "Read(.env.*)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(**/*credential*)",
@@ -31,6 +28,11 @@
       "Read(**/*.key)"
     ],
     "ask": [
+      "Read(~/.ssh/**)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
       "Bash(sudo:*)",
       "Bash(chmod 777:*)",
       "Bash(git push --force:*)",

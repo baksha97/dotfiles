@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **VSCode/Cursor** stow target is platform-specific (`~/Library/Application Support/Code/User` on macOS, `~/.config/Code/User` on Linux), not `$HOME`.
 
-**Agent skills** in `meta/.ai-agent/skills/` are symlinked to `~/.copilot/skills`, `~/.cursor/skills`, and `~/.agents/skills` during setup.
+**Agent skills** in `meta/skills/` are symlinked to `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`, and `~/.claude/skills` during setup.
 
 ## Setup Scripts
 

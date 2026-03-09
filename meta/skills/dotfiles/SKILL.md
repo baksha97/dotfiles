@@ -22,7 +22,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `stow/zsh/.zshrc.d/00-path.zsh` | All `$PATH` exports, tool-specific path entries |
 | `stow/zsh/.zshrc.d/aliases.zsh` | Shell aliases |
 | `stow/zsh/.zshrc.d/keybindings.zsh` | Zsh keybindings (`bindkey`) |
-| `stow/zsh/.zshrc.d/utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking) |
+| `stow/zsh/.zshrc.d/utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking), `link-agent-md` (ensure AGENT.md is canonical, CLAUDE.md symlinks to it) |
 | `stow/zsh/.zshrc.d/utils-worktree.zsh` | Git worktree helpers (`gct`, `grmt`) |
 | `stow/zsh/.zshrc.d/integrations.zsh` | Tool integrations (zoxide, fzf, etc.) |
 | `stow/zsh/.zshrc.d/zinit.zsh` | Zinit plugin manager + plugins |
@@ -111,6 +111,8 @@ Global skills live in `meta/skills/`. During setup, this directory is symlinked 
 The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for target in ...` loop). Adding a new skill directory under `meta/skills/` is picked up automatically — no re-run needed since the whole directory is symlinked.
 
 `link-skills` / `unlink-skills` in `utils-ai.zsh` are a separate concern — they handle **project-local** skill linking within a repo, not the global dotfiles skills.
+
+`link-agent-md` in `utils-ai.zsh` ensures `AGENT.md` is the canonical instructions file and `CLAUDE.md` is a symlink to it. If `CLAUDE.md` has the content, it migrates it to `AGENT.md` and creates the symlink. Run from the project root — no arguments needed.
 
 ## Conventions Checklist
 

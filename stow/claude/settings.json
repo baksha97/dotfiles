@@ -45,6 +45,9 @@
     "type": "command",
     "command": "~/.claude/status-line.sh"
   },
+  "enabledPlugins": {
+    "nelson@nelson-marketplace": true
+  },
   "extraKnownMarketplaces": {
     "anthropic-agent-skills": {
       "source": {
@@ -61,7 +64,5 @@
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "enabledPlugins": {
-    "nelson@nelson-marketplace": true
-  }
+  "model": "opus"
 }

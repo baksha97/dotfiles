@@ -1,0 +1,51 @@
+{
+  "skill_name": "internal-comms",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "write a slack message summarizing my findings on a CI build failure. our android builds started failing after the kotlin 2.2.20 upgrade because of a dependency conflict with the compose compiler. i've narrowed it down to the compose-bom version pinned in our convention plugins. @brett needs to update the compose-bom and i need @streaming to hold off on merging until this is resolved. ticket is CATCH-2104.",
+      "expected_output": "A Slack message using the 'What's clear / What's unclear / Recommended Next Steps' structure, written in Travis's lowercase voice with tagged action items",
+      "files": [],
+      "expectations": [
+        "The output uses a structured format with labeled sections (e.g. 'What's clear' / 'What's unclear' / 'Recommended Next Steps' or similar investigation structure)",
+        "The output is predominantly lowercase (sentence starts are not capitalized, except proper nouns and acronyms)",
+        "The output tags @brett with a specific action item about updating compose-bom",
+        "The output tags @streaming with a specific action item about holding off on merging",
+        "The output references ticket CATCH-2104",
+        "The output mentions the root cause (compose-bom version pinned in convention plugins)",
+        "The tone is direct and technically precise without being verbose or corporate-sounding"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "write a message to the SRE team asking about getting a new GKE namespace for our observability staging environment. we need it isolated from the existing identity services namespace so we can test terraform modules without impacting prod-like infra. cc @todd",
+      "expected_output": "A Slack message using the 'Context / Requirements' cross-team request structure with :wave: opener, written in Travis's voice",
+      "files": [],
+      "expectations": [
+        "The output opens with :wave: or a similar greeting emoji",
+        "The output has a 'Context' section explaining who Travis is and what the Core team needs",
+        "The output has a 'Requirements' section with specific asks",
+        "The output ends with a collaborative closing like 'does that sound right?' or similar deference to the SRE team's expertise",
+        "The output is predominantly lowercase",
+        "The output includes 'cc: @todd' or similar",
+        "The output mentions isolation from identity services namespace and the reason (testing terraform modules safely)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "write a slack message announcing that we've finished rolling out MLBObservabilityKit to 100% of MLB App users on both android and iOS. started at 5% three weeks ago, no regressions, crash rate stayed flat. teams can now create their own dashboards using the terraform modules we published. link to the docs: https://docs.internal/observability",
+      "expected_output": "A Slack announcement in Travis's show-and-tell style with :wave: opener, key details, and an invitation for feedback",
+      "files": [],
+      "expectations": [
+        "The output opens with :wave: or a similar greeting",
+        "The output mentions the 5% to 100% rollout progression",
+        "The output mentions no regressions and flat crash rate as evidence of stability",
+        "The output mentions teams can create their own dashboards with terraform modules",
+        "The output includes the docs link",
+        "The output ends with an invitation for feedback or questions (e.g. 'feel free to...' or 'let me know if...')",
+        "The output is predominantly lowercase",
+        "The tone is enthusiastic but not over-the-top — professional warmth, not hype"
+      ]
+    }
+  ]
+}

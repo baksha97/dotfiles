@@ -1,0 +1,69 @@
+{
+  "env": {
+    "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "1",
+    "DISABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "_Z0_DOCTOR": "0"
+  },
+  "permissions": {
+    "allow": [
+      "Skill(codex-skill)",
+      "Skill(claude-code-settings:codex-skill)",
+      "Skill(nanobanana-skill)",
+      "Skill(claude-code-settings:nanobanana-skill)",
+      "Skill(youtube-transcribe-skill)",
+      "Skill(claude-code-settings:youtube-transcribe-skill)",
+      "Skill(autonomous-skill)",
+      "Skill(claude-code-settings:autonomous-skill)",
+      "Bash(codex:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(**/*credential*)",
+      "Read(**/*secret*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ],
+    "ask": [
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(npm publish:*)",
+      "Bash(eval:*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/status-line.sh"
+  },
+  "enabledPlugins": {
+    "nelson@nelson-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "nelson-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "harrymunro/nelson"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "model": "opus"
+}

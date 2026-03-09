@@ -163,7 +163,7 @@ See `references/schemas.md` for the full schema (including the `assertions` fiel
 
 ## Activating Skills in a Project
 
-Before test runs can discover a project-level skill, it must be linked into the agent discovery paths. `link-skills` and `unlink-skills` are shell functions available on the path (from `~/.zshrc.d/utils.zsh`).
+Before test runs can discover a project-level skill, it must be linked into the agent discovery paths. `link-skills` and `unlink-skills` are shell functions available on the path (from `~/.zshrc.d/50-utils-ai.zsh`).
 
 ```bash
 # From the project root — auto-discovers the skills directory

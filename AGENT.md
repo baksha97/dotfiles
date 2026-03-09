@@ -119,8 +119,8 @@ stow_package tool
 | `meta/scripts/stow.d/` | Per-package stow manifests |
 | `meta/packages/linux.packages` | apt package list |
 | `meta/packages/alpine.packages` | apk package list |
-| `stow/zsh/.zshrc` | Zsh config — sources all `~/.zshrc.d/*.zsh` |
-| `stow/zsh/.zshrc.d/` | Modular zsh configs (reference pattern for install.d/stow.d) |
+| `stow/zsh/.zshrc` | Zsh config — sources all `~/.zshrc.d/*.zsh` (just the loop, nothing else) |
+| `stow/zsh/.zshrc.d/` | Modular zsh configs, numbered-prefix ordering: `00-` first, `50-` default, `99-` last |
 | `stow/git/.gitconfig` | Global git config including `[include]` for the profile file |
 | `stow/alacritty/.config/alacritty/alacritty.toml` | Terminal config; themes live in `themes/` subdirectory |
 | `stow/alacritty/.config/linearmouse/linearmouse.json` | macOS mouse customization |

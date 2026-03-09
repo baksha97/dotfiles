@@ -19,13 +19,16 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 
 | File | What lives here |
 |------|----------------|
+| `stow/zsh/.zshrc.d/00-p10k.zsh` | Powerlevel10k instant prompt (must load first) |
 | `stow/zsh/.zshrc.d/00-path.zsh` | All `$PATH` exports, tool-specific path entries |
-| `stow/zsh/.zshrc.d/aliases.zsh` | Shell aliases |
-| `stow/zsh/.zshrc.d/keybindings.zsh` | Zsh keybindings (`bindkey`) |
-| `stow/zsh/.zshrc.d/utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking), `link-agent-md` (ensure AGENT.md is canonical, CLAUDE.md symlinks to it) |
-| `stow/zsh/.zshrc.d/utils-worktree.zsh` | Git worktree helpers (`gct`, `grmt`) |
-| `stow/zsh/.zshrc.d/integrations.zsh` | Tool integrations (zoxide, fzf, etc.) |
-| `stow/zsh/.zshrc.d/zinit.zsh` | Zinit plugin manager + plugins |
+| `stow/zsh/.zshrc.d/50-aliases.zsh` | Shell aliases |
+| `stow/zsh/.zshrc.d/50-keybindings.zsh` | Zsh keybindings (`bindkey`) |
+| `stow/zsh/.zshrc.d/50-utils-ai.zsh` | `link-skills`, `unlink-skills` (project-local skill linking), `link-agent-md` (ensure AGENT.md is canonical, CLAUDE.md symlinks to it) |
+| `stow/zsh/.zshrc.d/50-utils-worktree.zsh` | Git worktree helpers (`gct`, `grmt`) |
+| `stow/zsh/.zshrc.d/50-integrations.zsh` | Tool integrations (fzf, etc.) |
+| `stow/zsh/.zshrc.d/50-zinit.zsh` | Zinit plugin manager + plugins + compinit |
+| `stow/zsh/.zshrc.d/99-sdkman.zsh` | SDKMAN init (must load last) |
+| `stow/zsh/.zshrc.d/99-zoxide.zsh` | zoxide init (must load after compinit) |
 | `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, agent skills symlinks |
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | CLI tool installers for Linux + Alpine |
@@ -35,6 +38,18 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `meta/packages/alpine.packages` | apk package list |
 | `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
 | `meta/homebrew/Brewfile.work` | macOS work Homebrew bundle |
+
+## .zshrc.d Numbered Prefix Convention
+
+All `.zshrc.d/` files use a numbered prefix to control load order. `.zshrc` is just a 3-line loop — all config lives in the `.d/` files.
+
+| Prefix | Purpose | Examples |
+|--------|---------|----------|
+| `00-` | Must run first | `00-p10k.zsh` (instant prompt), `00-path.zsh` (PATH) |
+| `50-` | Default tier, no ordering constraint | `50-aliases.zsh`, `50-zinit.zsh`, `50-keybindings.zsh` |
+| `99-` | Must run last | `99-sdkman.zsh` (SDKMAN), `99-zoxide.zsh` (after compinit) |
+
+New `.zshrc.d/` files should use the `50-` prefix unless they have a specific ordering requirement.
 
 ## PATH Changes
 
@@ -49,7 +64,7 @@ Never scatter `export PATH=` into other `.zshrc.d/` files — keep it centralize
 
 ## Adding a Keybinding
 
-Edit `stow/zsh/.zshrc.d/keybindings.zsh`. Use `bindkey` with explicit key sequences. Document non-obvious sequences with a comment.
+Edit `stow/zsh/.zshrc.d/50-keybindings.zsh`. Use `bindkey` with explicit key sequences. Document non-obvious sequences with a comment.
 
 ```zsh
 bindkey '^P' history-search-backward   # Ctrl+P: history search up
@@ -57,11 +72,11 @@ bindkey '^P' history-search-backward   # Ctrl+P: history search up
 
 ## Adding an Alias
 
-Edit `stow/zsh/.zshrc.d/aliases.zsh`. Group by topic with a comment header.
+Edit `stow/zsh/.zshrc.d/50-aliases.zsh`. Group by topic with a comment header.
 
 ## Adding a Utility Function
 
-Add to the appropriate `utils-*.zsh` file, or create `stow/zsh/.zshrc.d/utils-<topic>.zsh` for a new domain. `.zshrc` auto-sources all `~/.zshrc.d/*.zsh` files.
+Add to the appropriate `50-utils-*.zsh` file, or create `stow/zsh/.zshrc.d/50-utils-<topic>.zsh` for a new domain. `.zshrc` auto-sources all `~/.zshrc.d/*.zsh` files.
 
 ## Adding a New CLI Tool (Linux/Alpine)
 
@@ -120,7 +135,7 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 - [ ] `install.d/` scripts guard with `command -v tool &>/dev/null && return 0`
 - [ ] New zsh config goes in its own `.zshrc.d/` file, not appended to `.zshrc`
 - [ ] Path entries go in `00-path.zsh` only
-- [ ] Numbered prefixes (`NN-`) control load order — lower = earlier
+- [ ] Numbered prefixes control load order: `00-` first, `50-` default, `99-` last — new files default to `50-`
 - [ ] Device-specific configs inside `stow/alacritty/.config/` (non-`alacritty/`) are gitignored
 - [ ] `stow/git/.gitconfig-profile` is gitignored — never commit it
 - [ ] `backup/` is for timestamped pre-existing config snapshots — never edit these

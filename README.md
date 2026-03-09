@@ -94,8 +94,8 @@ dotfiles/
 │   │   ├── settings.json
 │   │   └── keybindings.json
 │   └── zsh/                       # Zsh shell config
-│       ├── .zshrc                 # Sources all .zshrc.d/*.zsh (reference pattern)
-│       └── .zshrc.d/              # Modular zsh configurations
+│       ├── .zshrc                 # Sources all .zshrc.d/*.zsh (just the loop)
+│       └── .zshrc.d/              # Modular zsh configs (00-first, 50-default, 99-last)
 └── meta/                          # Support files (not stowed)
     ├── skills/                    # AI coding agent skills (symlinked to tool paths)
     ├── homebrew/                   # Homebrew package management (macOS only)
@@ -246,7 +246,7 @@ To add a new skill, create a directory under `meta/skills/` containing a `SKILL.
 
 ## Shell Configuration
 
-The `.zshrc` sets up a modern Zsh environment using [Zinit](https://github.com/zdharma-continuum/zinit) as the plugin manager. It sources all files from `~/.zshrc.d/` — the same file-loop composition pattern used by the setup scripts.
+The `.zshrc` is a single loop that sources all files from `~/.zshrc.d/` — the same file-loop composition pattern used by the setup scripts. Files use numbered prefixes to control load order: `00-` runs first (p10k, PATH), `50-` is the default tier, and `99-` runs last (SDKMAN, zoxide). [Zinit](https://github.com/zdharma-continuum/zinit) is the plugin manager.
 
 ### Plugin Stack
 
@@ -263,8 +263,8 @@ The `.zshrc` sets up a modern Zsh environment using [Zinit](https://github.com/z
 ### Shell Integrations
 
 - **fzf** — fuzzy finder for files, history, and completions
-- **zoxide** — smarter `cd` that learns your most-used directories (aliased to `cd`)
-- **SDKMAN!** — JVM SDK version management (loaded at end of `.zshrc`)
+- **zoxide** — smarter `cd` that learns your most-used directories (aliased to `cd`, loaded via `99-zoxide.zsh`)
+- **SDKMAN!** — JVM SDK version management (loaded via `99-sdkman.zsh`)
 
 ### Key Bindings
 

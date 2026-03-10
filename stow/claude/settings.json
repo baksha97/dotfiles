@@ -23,13 +23,13 @@
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(**/*credential*)",
-      "Read(**/*secret*)",
       "Read(**/*.pem)",
       "Read(**/*.key)"
     ],
     "ask": [
       "Read(~/.ssh/**)",
       "Read(.env)",
+      "Read(**/*secret*)",
       "Read(.env.*)",
       "Read(**/.env)",
       "Read(**/.env.*)",

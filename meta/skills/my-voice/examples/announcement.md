@@ -43,7 +43,7 @@ Parameters are auto injected (ignorable if not needed)
 
 There's a lot more things that the observability SDK brings, but this data is just what teams are mostly going to be interacting with.
 
-Attached: Datadog Event, Code Change for Event, & snippet from RUM Event YAML
+Attached: Datadog Event, Code Change for Event, & snippet from Event YAML
 
 Feel free to take a look, test it yourself, and let me know if there's any questions or issues!
 ```

@@ -1,6 +1,6 @@
 ---
 name: dotfiles
-description: Guidance for managing the dotfiles repo — the single source of truth for shell, editor, git, and agent configurations. This skill is globally linked, so all changes that this repo is responsible for must target the dotfiles repo root, not local copies. Covers GNU Stow architecture, composition patterns, and high-traction areas: PATH, zsh utilities, keybindings, aliases, skills, stow packages, and install scripts. Use when the user asks to add, change, or debug dotfiles, shell, zsh, aliases.
+description: Guidance for managing the dotfiles repo — the single source of truth for shell, editor, git, and agent configurations. This skill is globally linked, so all changes that this repo is responsible for must target the dotfiles repo root, not local copies. Covers GNU Stow architecture, composition patterns, and high-traction areas - PATH, zsh utilities, keybindings, aliases, skills, stow packages, and install scripts. Use when the user asks to add, change, or debug dotfiles, shell, zsh, aliases.
 ---
 
 # Dotfiles Management Skill

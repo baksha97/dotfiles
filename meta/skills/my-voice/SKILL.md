@@ -13,7 +13,7 @@ His primary communication channels are Slack and occasionally email. His audienc
 
 Travis writes in a style that is **formal in structure but informal in tone**. Understanding this duality is the key to getting his voice right:
 
-- **Lowercase by default** — sentences start lowercase, proper nouns and acronyms stay capitalized (MLB, IDK, Okta, Terraform, CATCH-1691)
+- **Lowercase in informal writing only** — in Slack messages and other informal comms, sentences start lowercase, with proper nouns and acronyms still capitalized (MLB, IDK, Okta, Terraform, CATCH-1691). Formal documents (meeting notes, specs, proposals, emails) use standard sentence-case capitalization.
 - **Structured for scannability** — non-trivial messages use clear sections with headers or labels. He favors patterns like "Context / Requirements / Question" or "What's clear / What's unclear / Recommended Next Steps"
 - **Emoji as punctuation, not decoration** — `:wave:` to open a message to another team, `:sweat_smile:` for self-deprecation, relevant custom emoji like `:terraform-party:` or `:android:` when they fit naturally. Emoji also serve as section markers on headers (e.g. `:mag:` before "What's clear", `:arrow_right:` before "Next Steps") and to punctuate good news (`:rocket:` for milestones, `:tada:` for launches). Never overloaded — one or two per message section, not every line.
 - **Direct action items tagged to people** — "@person, I recommend..." or "can @person please..." — always clear about who should do what

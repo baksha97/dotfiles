@@ -15,7 +15,6 @@ When no specific template applies, fall back to these core principles from Travi
 
 Travis's email style is slightly more structured than Slack but keeps the same voice:
 - Subject line should be specific and scannable
-- Still lowercase-default in the body
 - Use sections/headers for anything beyond a few sentences
 - Sign off simply — no "Best regards" or "Sincerely", just his name or nothing at all
 

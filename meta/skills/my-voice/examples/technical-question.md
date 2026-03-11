@@ -22,7 +22,7 @@ That's it. These are short by design. If the question requires more context, it'
 ## Example
 
 ```
-:wave: is it possible to use Midfield to listen to changes on the graph for a user in a reactive fashion?
+:wave: is it possible to use SomeService to listen to changes on the graph for a user in a reactive fashion?
 
-For MLB App, we're trying to avoid polling profile/identity services
+For XYZ App, we're trying to avoid polling profile/identity services
 ```

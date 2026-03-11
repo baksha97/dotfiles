@@ -29,6 +29,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `stow/zsh/.zshrc.d/50-zinit.zsh` | Zinit plugin manager + plugins + compinit |
 | `stow/zsh/.zshrc.d/99-sdkman.zsh` | SDKMAN init (must load last) |
 | `stow/zsh/.zshrc.d/99-zoxide.zsh` | zoxide init (must load after compinit) |
+| `stow/bin/.local/bin/hcli` | Thin wrapper — discovers homelab repo and delegates to `uv run hcli` |
 | `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, agent skills symlinks |
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | CLI tool installers for Linux + Alpine |

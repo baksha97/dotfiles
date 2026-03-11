@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# hcli — thin wrapper that discovers the homelab repo and delegates to uv.
+# Installed via dotfiles stow; safe to have on machines without the repo.
+
+set -euo pipefail
+
+# If inside a git repo that contains hcli/, use it directly (works in worktrees too)
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -n "$repo_root" && -f "$repo_root/hcli/pyproject.toml" ]]; then
+  exec uv run --directory "$repo_root/hcli" hcli "$@"
+fi
+
+# Fallback: check well-known locations
+for candidate in "$HOME/Code/homelab-workspace/homelab" "$HOME/Code/homelab" "$HOME/code/homelab" "$HOME/homelab"; do
+  if [[ -f "$candidate/hcli/pyproject.toml" ]]; then
+    exec uv run --directory "$candidate/hcli" hcli "$@"
+  fi
+done
+
+echo "hcli: homelab repo not found (not in a homelab repo, and no homelab found in ~/Code or ~/homelab)" >&2
+exit 1

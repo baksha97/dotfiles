@@ -26,7 +26,6 @@
   "github.copilot.nextEditSuggestions.enabled": true,
   "docker.extension.enableComposeLanguageServer": false,
   "swift.disableAutoResolve": true,
-  "scm.repositories.selectionMode": "single",
   "chat.viewSessions.orientation": "stacked",
   "claudeCode.preferredLocation": "panel",
   "chat.tools.urls.autoApprove": {
@@ -35,5 +34,6 @@
       "approveResponse": true
     }
   },
-  "git.openRepositoryInParentFolders": "always"
+  "git.openRepositoryInParentFolders": "always",
+  "python.terminal.activateEnv": false
 }

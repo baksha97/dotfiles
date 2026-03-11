@@ -29,7 +29,7 @@
     "ask": [
       "Read(~/.ssh/**)",
       "Read(.env)",
-      "Read(**/*secret*)",
+      "Read(**/*sensitive*)",
       "Read(.env.*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
@@ -65,6 +65,5 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "model": "opus"
+  "skipDangerousModePermissionPrompt": true
 }

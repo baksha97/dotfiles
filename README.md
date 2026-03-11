@@ -134,6 +134,7 @@ All stow packages live under `stow/`. The table below shows where each package's
 | `tmux` | `.tmux.conf` | `$HOME` |
 | `alacritty` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` | `$HOME` |
 | `git` | `.gitconfig`, `.gitignore` | `$HOME` |
+| `bin` | `.local/bin/hcli` (homelab CLI wrapper) | `$HOME` |
 | `claude` | `settings.json`, `status-line.sh`, `commands/`, `agents/`, `scripts/` | `~/.claude/` |
 | `vscode` | `settings.json`, `keybindings.json` | Platform-specific VS Code `User/` directory |
 

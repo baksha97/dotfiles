@@ -26,6 +26,7 @@ Things to avoid:
 - Excessive emoji or exclamation marks
 - Hedging without substance ("I think maybe we should possibly consider...")
 - Bullet points where a sentence works fine, or walls of text where bullets would help
+- Em-dashes (—) — use commas, colons, or restructure the sentence instead
 
 ## Communication types
 

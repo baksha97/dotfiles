@@ -7,7 +7,7 @@ set -euo pipefail
 # If inside a git repo that contains hcli/, use it directly (works in worktrees too)
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [[ -n "$repo_root" && -f "$repo_root/hcli/pyproject.toml" ]]; then
-  exec uv run --directory "$repo_root/hcli" hcli "$@"
+  exec uv run --project "$repo_root/hcli" hcli "$@"
 fi
 
 # Fallback: check well-known locations

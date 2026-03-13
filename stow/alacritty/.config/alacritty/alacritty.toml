@@ -6,8 +6,11 @@ duration = 0
 [colors]
 draw_bold_text_with_bright_colors = true
 
+[cursor.style]
+shape = "Block"
+blinking = "Off"
+
 [cursor]
-style = "Block"
 unfocused_hollow = false
 
 [debug]
@@ -21,6 +24,7 @@ decorations = "full"
 dynamic_padding = false
 dynamic_title = true
 opacity = 1.0
+option_as_alt = "Both"
 
 [window.padding]
 x = 25
@@ -46,7 +50,7 @@ family = "JetBrainsMono Nerd Font"
 style = "Medium"
 
 [[hints.enabled]]
-command = "xdg-open"
+command = { program = "/bin/sh", args = ["-c", "case \"$(uname)\" in Darwin) open \"$0\" ;; *) xdg-open \"$0\" ;; esac"] }
 hyperlinks = true
 post_processing = true
 regex = "(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-<>\"\\s{-}\\^⟨⟩`]+"
@@ -58,6 +62,21 @@ mods = "Control|Shift"
 [hints.enabled.mouse]
 enabled = true
 mods = "None"
+
+[keyboard]
+bindings = [
+    { key = "K", mods = "Super", chars = "\u000C" },
+    { key = "Left",  mods = "Alt",         chars = "\u001Bb" },
+    { key = "Right", mods = "Alt",         chars = "\u001Bf" },
+    { key = "Left",  mods = "Alt|Shift",   chars = "\u001B\u001B[D" },
+    { key = "Right", mods = "Alt|Shift",   chars = "\u001B\u001B[C" },
+    { key = "Back",  mods = "Super",       chars = "\u0015" },
+    { key = "Left",  mods = "Super",       chars = "\u0001" },
+    { key = "Right", mods = "Super",       chars = "\u0005" },
+]
+
+[scrolling]
+history = 100000
 
 [general]
 live_config_reload = true

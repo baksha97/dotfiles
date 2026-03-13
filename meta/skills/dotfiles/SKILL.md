@@ -140,6 +140,11 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 - [ ] Device-specific configs inside `stow/alacritty/.config/` (non-`alacritty/`) are gitignored
 - [ ] `stow/git/.gitconfig-profile` is gitignored — never commit it
 - [ ] `backup/` is for timestamped pre-existing config snapshots — never edit these
+- [ ] Adding a new file to an existing stow package requires re-running stow/setup (`--adopt` prevents tree folding)
+
+## Stow `--adopt` and Tree Folding
+
+Stow's `--adopt` flag and tree folding (directory-level symlinks) are mutually exclusive. With `--adopt`, stow pulls pre-existing files into the repo and creates **per-file symlinks**, so the parent directory remains a real directory. This means adding a new file to a stow package in the repo (e.g., a new `.zshrc.d/*.zsh` file) won't appear at the target until you re-run stow or setup. This is a deliberate tradeoff — `--adopt` protects pre-existing configs from being overwritten.
 
 ## Debugging Stow Conflicts
 

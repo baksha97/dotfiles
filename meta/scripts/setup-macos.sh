@@ -33,4 +33,7 @@ fi
 brew update
 brew bundle --verbose --file="$DOTFILES_DIR/meta/homebrew/Brewfile.$profile"
 
+# Install tools that use native installers
+source "$SCRIPT_DIR/install.d/shared/99-claude.sh"
+
 source "$SCRIPT_DIR/setup-common.sh"

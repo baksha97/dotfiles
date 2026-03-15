@@ -126,7 +126,7 @@ Global skills live in `meta/skills/`. During setup, this directory is symlinked 
 
 The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for target in ...` loop). Adding a new skill directory under `meta/skills/` is picked up automatically — no re-run needed since the whole directory is symlinked.
 
-`link-skills` / `unlink-skills` in `utils-ai.zsh` are a separate concern — they handle **project-local** skill linking within a repo, not the global dotfiles skills.
+`link-skills` / `unlink-skills` in `utils-ai.zsh` are a separate concern — they handle **project-local** skill linking within a repo, not the global dotfiles skills. This should only be manually invoked by the user when they want to link/unlink skills in a specific project directory.
 
 `link-agent-md` in `utils-ai.zsh` ensures `AGENTS.md` is the canonical instructions file and `CLAUDE.md` is a symlink to it. If `CLAUDE.md` has the content, it migrates it to `AGENTS.md` and creates the symlink. Run from the project root — no arguments needed.
 

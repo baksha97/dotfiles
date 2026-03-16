@@ -41,10 +41,10 @@ _find-skills-src() {
   fi
 
   for candidate in "${_skills_candidates[@]}"; do
-    if [[ -d "$candidate" ]]; then
-      echo "${candidate:A}"
-      return 0
-    fi
+    # Skip symlinks — they are targets created by link-skills, not sources
+    [[ -d "$candidate" && ! -L "$candidate" ]] || continue
+    echo "${candidate:A}"
+    return 0
   done
 
   echo "link-skills: no skills directory found. Tried: ${(j:, :)_skills_candidates}" >&2
@@ -58,25 +58,27 @@ link-skills() {
   echo "link-skills: using $skills_src"
 
   local project_root="${skills_src:h:h}"
+  local src_rel="${skills_src#$project_root/}"
   local src_ns="${${skills_src:h}:t}"
 
   for conv in "${_skills_targets[@]}"; do
     local target="$project_root/$conv"
     [[ "${${target:h}:t}" == "$src_ns" ]] && continue
-    mkdir -p "$target"
-    for skill in "$skills_src"/*/; do
-      skill="${skill%/}"
-      [[ -d "$skill" ]] || continue
-      local name=$(basename "$skill")
-      local link="$target/$name"
-      [[ -L "$link" ]] && rm "$link"
-      local rel_skill="${skill#$project_root/}"
-      local -a depth=("${(@s:/:)${target#$project_root/}}")
-      local dd="../"
-      local up="${(j::)${(@)depth/*/$dd}}"
-      ln -s "${up}${rel_skill}" "$link"
-      echo "  Linked $link -> ${up}${rel_skill}"
-    done
+
+    # Clean up: remove old per-skill symlinks or a stale directory symlink
+    if [[ -L "$target" ]]; then
+      rm "$target"
+    elif [[ -d "$target" ]]; then
+      # Remove any individual skill symlinks left from the old approach
+      for old in "$target"/*(N@); do rm "$old"; done
+      rmdir "$target" 2>/dev/null
+    fi
+
+    mkdir -p "${target:h}"
+    local -a depth=("${(@s:/:)${conv:h}}")
+    local up="${(j::)${(@)depth/*/../}}"
+    ln -s "${up}${src_rel}" "$target"
+    echo "  Linked $conv -> ${up}${src_rel}"
   done
 }
 
@@ -127,22 +129,12 @@ unlink-skills() {
   local project_root="${skills_src:h:h}"
   local src_ns="${${skills_src:h}:t}"
 
-  for skill in "$skills_src"/*/; do
-    skill="${skill%/}"
-    [[ -d "$skill" ]] || continue
-    local name=$(basename "$skill")
-    for conv in "${_skills_targets[@]}"; do
-      local target="$project_root/$conv"
-      [[ "${${target:h}:t}" == "$src_ns" ]] && continue
-      local link="$target/$name"
-      local rel_skill="${skill#$project_root/}"
-      local -a depth=("${(@s:/:)${target#$project_root/}}")
-      local dd="../"
-      local up="${(j::)${(@)depth/*/$dd}}"
-      if [[ -L "$link" && "$(readlink "$link")" == "${up}${rel_skill}" ]]; then
-        rm "$link"
-        echo "  Unlinked $link"
-      fi
-    done
+  for conv in "${_skills_targets[@]}"; do
+    local target="$project_root/$conv"
+    [[ "${${target:h}:t}" == "$src_ns" ]] && continue
+    if [[ -L "$target" ]]; then
+      rm "$target"
+      echo "  Unlinked $conv"
+    fi
   done
 }

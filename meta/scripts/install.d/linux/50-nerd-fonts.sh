@@ -1,6 +1,10 @@
 #!/bin/bash
 # nerd-fonts — patched fonts with icons for terminal use (macOS uses brew casks)
-nerd_fonts_version="v3.3.0"
+nerd_fonts_version="v$(gh_latest_version ryanoasis nerd-fonts)"
+if [[ "$nerd_fonts_version" == "v" ]]; then
+  echo "  Warning: could not determine nerd-fonts version, skipping." >&2
+  return 0
+fi
 nerd_fonts=(
   DroidSansMono
   FiraCode

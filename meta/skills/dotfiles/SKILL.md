@@ -12,7 +12,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 - **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; `stow -d stow <pkg> -t $HOME --adopt` creates the links.
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
 - **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch.
-- **Two platforms**: macOS and Linux (Debian/Ubuntu). `shared/` scripts must work on both platforms without platform guards; `linux/` scripts run only on Linux.
+- **Two platforms**: macOS and Linux (Debian/Ubuntu). Both follow an identical script structure that converges on `setup-common.sh`.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
 - **`AGENTS.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
 
@@ -42,12 +42,19 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 
 ## Cross-Platform Install Architecture
 
-**`shared/` scripts must work on both macOS and Linux without Darwin guards or apt-specific commands.** If a script would fail on macOS, it belongs in `linux/`.
+Both platform scripts follow the same structure:
 
-**macOS flow**: `setup-macos.sh` → source libs → brew bundle → loop `shared/` → `setup-common.sh`
-**Linux flow**: `setup-linux.sh` → source libs → apt install → merge `shared/` + `linux/` sorted by filename → `setup-common.sh`
+```
+DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
+→ source sudo.sh → source arch.sh → source github.sh
+→ platform packages (brew bundle / apt-get)
+→ install.d loop → setup-common.sh
+```
 
-On macOS, Homebrew runs first, so most shared scripts hit their `command -v` guard and skip. On Linux, `shared/` and `linux/` scripts are merged and sorted by filename so numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
+**`shared/` scripts must work on both macOS and Linux without platform guards.** No Darwin checks, no `apt-get` checks, no platform-specific conditionals in guards. If a script would fail on macOS, it belongs in `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's selecting the right binary, not guarding execution.
+
+**macOS**: `brew bundle` runs first, so most shared scripts hit their `command -v` guard and skip.
+**Linux**: `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ### Script numbering
 
@@ -59,27 +66,32 @@ Scripts across both directories share a single number line:
 | 50–60 | Linux-specific standalone tools | nerd-fonts, docker-compose, tailscale |
 | 70–72 | Node.js ecosystem setup | node (linux), nvm (linux) |
 | 74–76 | Package managers depending on node | pnpm, agent-browser |
-| 80–90 | npm-installed CLIs | vercel, gemini-cli |
+| 80–90 | npm-installed CLIs (require npm prerequisite guard) | vercel, gemini-cli |
 | 95–99 | Late installers | opencode, claude |
 
-### Guard patterns for `install.d/` scripts
+### Idempotency patterns for `install.d/` scripts
 
-| Pattern | Where | Example scripts |
-|---------|-------|-----------------|
-| `command -v tool && return 0` | `shared/` and `linux/` | All scripts — standard idempotency guard |
-| `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` | `linux/` | nvm (shell function, not a binary — `command -v` won't find it) |
-| Marker files | `linux/` | nerd-fonts (font files, not a binary — per-font version tracking) |
+Every script must be safe to re-run. Use the appropriate guard:
 
-**`shared/` scripts use only `command -v` guards.** No Darwin checks, no `apt-get` checks, no platform-specific logic in guards. If a script needs those, it belongs in `linux/`.
+| Pattern | When to use | Where |
+|---------|-------------|-------|
+| `command -v tool && return 0` | Standard — tool has a binary on PATH | `shared/` and `linux/` |
+| `[ -f "$HOME/.local/bin/tool" ] && return 0` | Fallback — tool installs to `~/.local/bin` which isn't on PATH in non-interactive bash | `shared/` (after `command -v`) |
+| `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` | Shell function, not a binary | `linux/` (nvm) |
+| Marker files (`.installed-Name-vX.Y.Z`) | No binary to check, versioned assets | `linux/` (nerd-fonts) |
+| `command -v npm \|\| { echo "Skipped..."; return 0; }` | Prerequisite guard — npm must be available | `shared/` (npm tools) |
+
+**`shared/` scripts use only `command -v` guards (+ fallback path checks + prerequisite guards).** No Darwin checks, no `apt-get` checks. If a script needs those, it belongs in `linux/`.
 
 ### npm-installed tools pattern
 
-For tools installed via `npm install -g`, use this template:
+For tools installed via `npm install -g`, use this template (number ≥74):
 
 ```bash
 #!/bin/bash
 # toolname — short description
 command -v toolname &>/dev/null && return 0
+command -v npm &>/dev/null || { echo "  Skipped toolname (npm not found)"; return 0; }
 echo "Installing toolname..."
 # Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
 NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
@@ -97,11 +109,23 @@ npm tools must be numbered ≥74 so they run after `linux/70-node` installs Node
 For tools downloaded as platform-specific binaries, detect the OS within the script:
 
 ```bash
-YQ_OS="linux"
-[[ "$(uname)" == "Darwin" ]] && YQ_OS="darwin"
+TOOL_OS="linux"
+[[ "$(uname)" == "Darwin" ]] && TOOL_OS="darwin"
 ```
 
-Use `$ARCH_GO` (amd64/arm64) and `$ARCH_MUSL` (x86_64/aarch64) from `lib/arch.sh` — never hardcode architecture. `arch.sh` handles both Linux `aarch64` and macOS `arm64`.
+Use `$ARCH_GO` (amd64/arm64) and `$ARCH_MUSL` (x86_64/aarch64) from `lib/arch.sh` — never hardcode architecture. `arch.sh` handles both Linux `aarch64` and macOS `arm64`. Always verify the release asset naming convention of the upstream project — naming varies (e.g. lazygit uses `arm64` even on Linux, not `aarch64`).
+
+### Version detection
+
+Never hardcode tool versions. Use `gh_latest_version OWNER REPO` from `lib/github.sh` to fetch the latest release tag. Always handle the failure case:
+
+```bash
+VERSION="$(gh_latest_version owner repo)"
+if [[ -z "$VERSION" ]]; then
+  echo "  Warning: could not determine version, skipping." >&2
+  return 0
+fi
+```
 
 ## .zshrc.d Numbered Prefix Convention
 
@@ -144,12 +168,13 @@ Add to the appropriate `50-utils-*.zsh` file, or create `stow/zsh/.zshrc.d/50-ut
 
 ## Adding a New CLI Tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (all platforms) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
 # toolname — one-line description
 command -v toolname &>/dev/null && return 0
+[ -f "$HOME/.local/bin/toolname" ] && return 0  # fallback for ~/.local/bin installers
 echo "Installing toolname..."
 curl -fsSL https://install.example.com | bash
 ```
@@ -157,8 +182,9 @@ curl -fsSL https://install.example.com | bash
 Rules:
 - Use `return`, never `exit` (scripts are sourced)
 - Guard with `command -v ... && return 0` for idempotency
+- Add fallback path check for tools that install to `~/.local/bin` (not on PATH in non-interactive bash)
 - Use `$SUDO`, `$ARCH`, `$ARCH_GO`, `$ARCH_MUSL` from `lib/` — never hardcode
-- Use `gh_latest_version OWNER REPO` from `lib/github.sh` for version detection
+- Use `gh_latest_version OWNER REPO` from `lib/github.sh` — never hardcode versions
 - **`shared/` scripts must not contain Darwin guards, `apt-get` guards, or any platform-specific conditionals in their guards** — if a script needs those, put it in `linux/`
 - npm-dependent tools go in `shared/` (npm works cross-platform) but must be numbered ≥74
 - Linux-specific install methods (apt, Linux font paths, shell functions without a binary) go in `linux/`
@@ -200,10 +226,12 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 
 - [ ] `install.d/` scripts use `return`, not `exit`
 - [ ] `install.d/` scripts guard with `command -v tool &>/dev/null && return 0`
+- [ ] `~/.local/bin` installers add fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
 - [ ] `shared/` scripts contain no Darwin guards, apt-get guards, or platform conditionals in guards
 - [ ] Scripts needing platform-specific guards (Darwin checks, apt-get checks, marker files) are in `linux/`
-- [ ] npm-dependent scripts in `shared/` are numbered ≥74 (after `linux/70-node`)
+- [ ] npm-dependent scripts in `shared/` include prerequisite guard and are numbered ≥74
 - [ ] Cross-platform binary scripts detect OS inline (`uname`) and use `$ARCH_GO`/`$ARCH_MUSL` — never hardcode
+- [ ] Versions are fetched dynamically via `gh_latest_version` — never hardcoded
 - [ ] Core CLI tools are in both Brewfile.personal and Brewfile.work (not profile-specific unless genuinely different)
 - [ ] New zsh config goes in its own `.zshrc.d/` file, not appended to `.zshrc`
 - [ ] Path entries go in `00-path.zsh` only

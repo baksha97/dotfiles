@@ -10,9 +10,11 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 ./main.sh alacritty-icon         # Replace Alacritty app icon
 ```
 
-`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh`, `setup-linux.sh`, and `setup-alpine.sh`, with shared logic in `setup-common.sh`.
+`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh` and `setup-linux.sh`, with shared logic in `setup-common.sh`.
 
 ## Architecture
+
+**Two platforms**: macOS and Linux (Debian/Ubuntu). Both share an identical script structure and converge on `setup-common.sh` for stow, git, and skills.
 
 **GNU Stow** is the core mechanism. Each directory under `stow/` mirrors `$HOME` and gets symlinked there via `stow -d stow <pkg> -t "$HOME" --adopt`. The `--adopt` flag moves pre-existing files into the repo and creates symlinks in place.
 
@@ -20,21 +22,35 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
 
-Linux/Alpine uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
+Linux uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
 
 On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles.
 
-**VSCode/Cursor** stow target is platform-specific (`~/Library/Application Support/Code/User` on macOS, `~/.config/Code/User` on Linux), not `$HOME`.
+**VSCode/Cursor** stow target is platform-specific (`~/Library/Application Support/Code/User` on macOS, `~/.config/Code/User` on Linux), not `$HOME`. Only stows if `code` is installed.
 
 **Agent skills** in `meta/skills/` are symlinked to `~/.copilot/skills`, `~/.cursor/skills`, `~/.agents/skills`, and `~/.claude/skills` during setup.
+
+## Cross-Platform Setup Flow
+
+Both platform scripts follow the same structure:
+
+```
+DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
+→ source sudo.sh → source arch.sh → source github.sh
+→ platform packages (brew bundle / apt-get)
+→ install.d/shared/ loop (+ linux/ merged on Linux)
+→ setup-common.sh (SDKMAN!, stow.d loop, git profile, agent skills)
+```
+
+**macOS**: `brew bundle` installs most tools first, so shared scripts hit `command -v` guards and skip.
+**Linux**: `shared/` and `linux/` scripts are merged and sorted by filename — numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ## Setup Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle from Brewfile.<profile>) |
-| `setup-linux.sh` | Linux bootstrap: sources lib/, loops install.d/shared/ + install.d/linux/, delegates to setup-common.sh |
-| `setup-alpine.sh` | Alpine bootstrap: sources lib/, loops install.d/shared/, delegates to setup-common.sh |
+| `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle, loops install.d/shared/) |
+| `setup-linux.sh` | Linux bootstrap (apt install, merges install.d/shared/ + linux/ sorted by filename) |
 | `setup-common.sh` | Shared bootstrap: SDKMAN!, loops stow.d/, git profile, agent skills |
 | `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
@@ -46,20 +62,33 @@ The setup scripts use the same file-loop pattern as `.zshrc.d/`: each concern li
 ```
 meta/scripts/
   lib/                     # Shared utilities sourced at the start of each platform script
-    arch.sh                # ARCH_GO / ARCH_MUSL detection (exported)
+    arch.sh                # ARCH / ARCH_GO / ARCH_MUSL detection (exported)
     sudo.sh                # SUDO prefix detection (exported)
     github.sh              # gh_latest_version() helper function
     profile.sh             # resolve_profile() — auto-detect or accept explicit profile
-  install.d/               # Per-tool installers (sourced in alphabetical order)
-    shared/                # Tools installed on all Linux-family platforms
-    linux/                 # Debian/Ubuntu-only tools
+  install.d/               # Per-tool installers (sourced in numbered order)
+    shared/                # Cross-platform (must work on macOS + Linux without platform guards)
+    linux/                 # Linux-only (apt-specific, Linux paths, etc.)
     linux-gui/             # GUI apps (sourced only when DISPLAY/WAYLAND is set)
   stow.d/                  # One file per stow package (sourced by setup-common.sh)
 ```
 
+### Script numbering
+
+Scripts across `shared/` and `linux/` share a single number line. On Linux, both directories are merged and sorted by filename:
+
+| Range | Purpose | Examples |
+|-------|---------|----------|
+| 10–40 | Standalone tools (no deps) | lazygit, zoxide, yq, uv |
+| 50–60 | Linux-specific standalone tools | nerd-fonts, docker-compose, tailscale |
+| 70–72 | Node.js ecosystem setup | node (linux), nvm (linux) |
+| 74–76 | Package managers depending on node | pnpm, agent-browser |
+| 80–90 | npm-installed CLIs (require npm prerequisite guard) | vercel, gemini-cli |
+| 95–99 | Late installers | opencode, claude |
+
 ### Adding a new CLI tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (both platforms) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
@@ -68,6 +97,8 @@ command -v toolname &>/dev/null && return 0
 echo "Installing toolname..."
 curl -fsSL https://toolname.dev/install.sh | bash
 ```
+
+**`shared/` rules**: no Darwin guards, no `apt-get` guards, no platform-specific conditionals in guards. If a script needs those, it belongs in `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's not a guard.
 
 ### Adding a new stow package
 
@@ -83,42 +114,55 @@ stow_package tool
 
 `stow_backup` backs up and removes real files; symlinks are removed without backup. `stow_package` runs stow against `$STOW_TARGET` (default `$HOME`).
 
-## Linux/Alpine Install Details
+## Idempotency
 
-**Linux** (`setup-linux.sh`) installs in this order:
-1. Source `lib/` utilities (profile, arch, sudo, github helpers)
-2. **apt packages** from `meta/packages/linux.packages`
-3. Change shell to zsh
-4. Source `install.d/shared/*.sh` then `install.d/linux/*.sh` (each tool guards with `command -v && return 0`)
-5. Source `install.d/linux-gui/*.sh` (only when `DISPLAY`/`WAYLAND_DISPLAY`/`XDG_CURRENT_DESKTOP` is set)
-6. Source `setup-common.sh` (SDKMAN!, stow, git profile, agent skills)
-7. Install Gradle and Kotlin via SDKMAN!
+Every component is designed for safe re-runs:
 
-**Alpine** (`setup-alpine.sh`) installs in this order:
-1. Source `lib/` utilities
-2. Enable community repo, install **apk packages** from `meta/packages/alpine.packages`
-3. Change shell to zsh
-4. Source `install.d/shared/*.sh`
-5. Source `setup-common.sh`
+- **`install.d/` scripts** guard with `command -v tool && return 0`. For tools that install to `~/.local/bin` (not on PATH in non-interactive bash), add a fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
+- **npm-installed tools** add `command -v npm || { echo "Skipped ..."; return 0; }` as a prerequisite guard
+- **Nerd fonts** use per-font marker files (`.installed-FontName-vX.Y.Z`) for version-aware idempotency
+- **nvm** checks `[ -s "$HOME/.nvm/nvm.sh" ]` since it's a shell function, not a binary
+- **`stow --adopt`** is idempotent — re-stowing adopted files is a no-op
+- **Git profile** copy is guarded by `cmp -s` — skips if unchanged
+- **Skills symlinks** are recreated each run (rm + ln -s) — idempotent
+- **Version detection** uses `gh_latest_version` — always fetches the latest release, never hardcodes versions
+
+## Testing Linux Changes
+
+Use Multipass to validate changes on a fresh Ubuntu VM:
+
+```bash
+multipass launch --name dotfiles-test --cpus 2 --memory 2G --disk 10G 24.04
+multipass exec dotfiles-test -- bash -c "\
+  sudo apt-get update -qq && sudo apt-get install -y -qq git > /dev/null 2>&1 && \
+  git clone https://github.com/baksha97/dotfiles.git ~/dotfiles && \
+  cd ~/dotfiles && ./main.sh setup personal"
+```
+
+Verify idempotency by running setup again — all tools should skip. Clean up with `multipass delete dotfiles-test && multipass purge`.
+
+## Common Pitfalls
+
+- **`~/.local/bin` not on PATH**: Tools installed via curl-to-bash (zoxide, uv, pnpm, claude) land in `~/.local/bin`, which isn't on `$PATH` in non-interactive bash. `command -v` will miss them on re-runs. Always add a fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
+- **Release asset naming varies**: GitHub release archives use inconsistent naming (lazygit uses `arm64` not `aarch64`, yq uses `linux` not `Linux`). Always check the actual asset names via the GitHub API before writing download URLs.
+- **Verify upstream install scripts are cross-platform**: Before putting a curl-to-bash installer in `shared/`, confirm the upstream script handles both macOS and Linux. If it only works on one platform, it belongs in `linux/`.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `meta/scripts/setup-macos.sh` | macOS bootstrap (Homebrew install + bundle) |
-| `meta/scripts/setup-linux.sh` | Linux bootstrap orchestrator (~55 lines) |
-| `meta/scripts/setup-alpine.sh` | Alpine bootstrap orchestrator (~50 lines) |
+| `meta/scripts/setup-macos.sh` | macOS bootstrap (Homebrew install + bundle + shared loop) |
+| `meta/scripts/setup-linux.sh` | Linux bootstrap orchestrator (apt + merged install loop) |
 | `meta/scripts/setup-common.sh` | Shared bootstrap (SDKMAN!, stow.d loop, git profile, agent skills) |
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
 | `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
-| `meta/scripts/install.d/shared/` | Tool installers for Linux + Alpine |
-| `meta/scripts/install.d/linux/` | Debian/Ubuntu-specific tool installers |
+| `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux) |
+| `meta/scripts/install.d/linux/` | Linux-only tool installers |
 | `meta/scripts/install.d/linux-gui/` | GUI app installers (headful only) |
 | `meta/scripts/stow.d/` | Per-package stow manifests |
 | `meta/packages/linux.packages` | apt package list |
-| `meta/packages/alpine.packages` | apk package list |
 | `stow/zsh/.zshrc` | Zsh config — sources all `~/.zshrc.d/*.zsh` (just the loop, nothing else) |
 | `stow/zsh/.zshrc.d/` | Modular zsh configs, numbered-prefix ordering: `00-` first, `50-` default, `99-` last |
 | `stow/git/.gitconfig` | Global git config including `[include]` for the profile file |
@@ -135,7 +179,7 @@ stow_package tool
 | `alacritty` | `$HOME` | `.config/alacritty/`, `.config/linearmouse/`, `.config/git/` |
 | `git` | `$HOME` | `.gitconfig`, `.gitignore` |
 | `claude` | `~/.claude/` | `settings.json`, `status-line.sh`, `commands/`, `agents/`, `scripts/` |
-| `vscode` | Platform-specific VS Code `User/` | `settings.json`, `keybindings.json` |
+| `vscode` | Platform-specific VS Code `User/` | `settings.json`, `keybindings.json` (only if `code` is installed) |
 
 ## Conventions
 
@@ -144,4 +188,7 @@ stow_package tool
 - Device-specific configs inside `stow/alacritty/.config/` (anything other than `alacritty/`) are gitignored
 - Profiles available: `personal`, `work`
 - All `install.d/` and `stow.d/` scripts use `return` (not `exit`) since they are sourced, not executed
-- `install.d/` scripts are idempotent: each guards with `command -v tool &>/dev/null && return 0`
+- `install.d/` scripts are idempotent: guard with `command -v` + fallback path check for `~/.local/bin` installers
+- `shared/` scripts must not contain platform guards — only `command -v` and prerequisite guards
+- Core CLI tools belong in both Brewfile.personal and Brewfile.work unless genuinely profile-specific
+- Never hardcode tool versions — use `gh_latest_version` for GitHub releases

@@ -1,11 +1,12 @@
 # Dotfiles
 
-Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS, Linux (Debian/Ubuntu), or Alpine machine with shell, editor, terminal, git, and AI agent skill configurations.
+Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS or Linux (Debian/Ubuntu) machine with shell, editor, terminal, git, and AI agent skill configurations.
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
+- [Cross-Platform Architecture](#cross-platform-architecture)
 - [Repository Structure](#repository-structure)
 - [Stow Packages](#stow-packages)
 - [What Gets Installed](#what-gets-installed)
@@ -61,10 +62,57 @@ stow/
 
 The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow package requires only dropping one file** — no edits to existing scripts.
 
-- `meta/scripts/install.d/shared/` — tool installers for all Linux-family platforms
-- `meta/scripts/install.d/linux/` — Debian/Ubuntu-only tools
+- `meta/scripts/install.d/shared/` — cross-platform tool installers (must work on macOS + Linux)
+- `meta/scripts/install.d/linux/` — Linux-only tools (apt-specific, Linux paths)
 - `meta/scripts/install.d/linux-gui/` — GUI apps (headful only)
 - `meta/scripts/stow.d/` — one stow manifest per package
+
+## Cross-Platform Architecture
+
+Both macOS and Linux follow the same setup structure:
+
+```
+source libs → resolve profile → platform packages → install.d loop → setup-common.sh
+```
+
+**macOS** (`setup-macos.sh`): Homebrew installs most tools via `brew bundle`, then `shared/` scripts run — most hit their `command -v` guard and skip since brew already installed the tool.
+
+**Linux** (`setup-linux.sh`): apt installs base packages, then `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order. This ensures dependencies are respected (e.g. `linux/70-node` runs before `shared/80-vercel`).
+
+### Strict `shared/` vs `linux/` separation
+
+- **`shared/`**: Scripts must work on both macOS and Linux **without platform guards**. No `[[ "$(uname)" == "Darwin" ]] && return 0`, no `command -v apt-get || return 0`. If a script would fail on macOS, it belongs in `linux/`.
+- **`linux/`**: Linux-only install methods — apt repos, Linux font paths, shell functions without a binary to check.
+
+Inline OS detection for binary download URLs is fine in `shared/` (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) — that's selecting the right binary, not guarding execution.
+
+### Script numbering
+
+Scripts across both directories share a single number line:
+
+| Range | Purpose | Examples |
+|-------|---------|----------|
+| 10–40 | Standalone tools (no deps) | lazygit, zoxide, yq, uv |
+| 50–60 | Linux-specific standalone tools | nerd-fonts, docker-compose, tailscale |
+| 70–72 | Node.js ecosystem setup | node (linux), nvm (linux) |
+| 74–76 | Package managers depending on node | pnpm, agent-browser |
+| 80–90 | npm-installed CLIs | vercel, gemini-cli |
+| 95–99 | Late installers | opencode, claude |
+
+### Idempotency
+
+Every setup component is designed for safe re-runs:
+
+| Component | Guard mechanism |
+|-----------|----------------|
+| `install.d/` scripts | `command -v tool && return 0` + fallback path check for `~/.local/bin` installers |
+| npm-installed tools | `command -v npm \|\| { echo "Skipped..."; return 0; }` prerequisite guard |
+| Nerd fonts (linux) | Per-font marker files (`.installed-FontName-vX.Y.Z`) |
+| nvm (linux) | `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` (shell function, not binary) |
+| `stow --adopt` | Idempotent — re-stowing adopted files is a no-op |
+| Git profile | `cmp -s` guard — skips copy if unchanged |
+| Skills symlinks | Recreated each run (rm + ln -s) |
+| Version detection | `gh_latest_version` — always latest, never hardcoded |
 
 ## Repository Structure
 
@@ -102,8 +150,7 @@ dotfiles/
     │   ├── Brewfile.personal
     │   └── Brewfile.work
     ├── packages/                   # Linux package lists
-    │   ├── linux.packages          # apt packages for Debian/Ubuntu setup
-    │   └── alpine.packages         # apk packages for Alpine setup
+    │   └── linux.packages          # apt packages for Debian/Ubuntu setup
     └── scripts/                    # Implementation scripts
         ├── lib/                    # Shared utilities (sourced first by platform scripts)
         │   ├── arch.sh             # ARCH_GO / ARCH_MUSL detection
@@ -111,13 +158,12 @@ dotfiles/
         │   ├── github.sh           # gh_latest_version() helper
         │   └── profile.sh          # resolve_profile() — auto-detect or accept explicit
         ├── install.d/              # Per-tool installers (one file = one tool)
-        │   ├── shared/             # Tools for all Linux-family platforms
-        │   ├── linux/              # Debian/Ubuntu-only tools
+        │   ├── shared/             # Cross-platform (must work on macOS + Linux)
+        │   ├── linux/              # Linux-only tools
         │   └── linux-gui/          # GUI apps (headful environments only)
         ├── stow.d/                 # Per-package stow manifests (one file = one package)
-        ├── setup-macos.sh          # macOS bootstrap (Homebrew)
-        ├── setup-linux.sh          # Linux bootstrap orchestrator
-        ├── setup-alpine.sh         # Alpine bootstrap orchestrator
+        ├── setup-macos.sh          # macOS bootstrap (Homebrew + shared loop)
+        ├── setup-linux.sh          # Linux bootstrap (apt + merged install loop)
         ├── setup-common.sh         # Shared stow/git/skills setup
         ├── backup.sh               # Brewfile dump
         └── alacritty-icon.sh       # Icon replacement
@@ -147,26 +193,61 @@ VS Code target paths:
 The `setup` command performs these steps in order:
 
 1. **Resolve profile** — auto-detects from previous setup or uses explicit argument (defaults to `personal`)
-2. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
-3. **Platform-specific package installation:**
-   - **macOS**: Install Homebrew (if missing), then install from `meta/homebrew/Brewfile.<profile>`
-   - **Linux**: Install apt packages from `meta/packages/linux.packages`, then source each tool installer in `install.d/`
-   - **Alpine**: Install apk packages from `meta/packages/alpine.packages`, then source shared tool installers
-4. **Install SDKMAN!** for JVM SDK management
-5. **Stow all packages** — each `stow.d/` script backs up and links one package
-6. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
-7. **Symlink Agent Skills** — makes skills discoverable by Copilot, Cursor, and other agents
-8. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
+2. **Source lib utilities** — profile, sudo, arch, github helpers
+3. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
+4. **Platform-specific package installation:**
+   - **macOS**: Install Homebrew (if missing), then `brew bundle` from `meta/homebrew/Brewfile.<profile>`
+   - **Linux**: Install apt packages from `meta/packages/linux.packages`, change shell to zsh
+5. **Install.d loop** — each script installs one tool with idempotency guards
+   - **macOS**: loops `shared/` only (brew already installed most tools)
+   - **Linux**: merges `shared/` + `linux/` sorted by filename for dependency ordering
+6. **Install SDKMAN!** for JVM SDK management
+7. **Stow all packages** — each `stow.d/` script backs up and links one package
+8. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
+9. **Symlink Agent Skills** — makes skills discoverable by Copilot, Cursor, and other agents
+10. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
+
+### Tool Installation Matrix
+
+**Cross-platform tools** (`shared/` — run on macOS + Linux):
+
+| Tool | macOS source | Linux source |
+|------|-------------|--------------|
+| lazygit | brew → skip | `shared/10` (GitHub binary) |
+| zoxide | brew → skip | `shared/20` (install script) |
+| yq | brew → skip | `shared/30` (GitHub binary) |
+| uv | brew → skip | `shared/40` (install script) |
+| pnpm | brew → skip | `shared/74` (install script) |
+| agent-browser | brew → skip | `shared/76` (npm) |
+| vercel | brew → skip | `shared/80` (npm) |
+| gemini-cli | `shared/90` (npm) | `shared/90` (npm) |
+| claude | `shared/99` (install script) | `shared/99` (install script) |
+
+**Linux-only tools** (`linux/`):
+
+| Tool | Source |
+|------|--------|
+| gh CLI | `linux/10` (apt repo) |
+| fzf (latest) | `linux/20` (GitHub binary) |
+| just | `linux/30` (install script) |
+| docker | `linux/40` (get.docker.com) |
+| docker-compose | `linux/50` (GitHub plugin) |
+| nerd-fonts | `linux/50` (GitHub tarballs, latest version) |
+| tailscale | `linux/60` (install script) |
+| node | `linux/70` (NodeSource apt) |
+| nvm | `linux/72` (install script) |
+| opencode | `linux/95` (install script) |
 
 ### macOS Brewfile Highlights
 
 | Category | Packages |
 |----------|----------|
-| **CLI tools** | `fzf`, `zoxide`, `tmux`, `stow`, `curl`, `ffmpeg`, `typos-cli` |
+| **CLI tools** | `fzf`, `zoxide`, `tmux`, `stow`, `curl`, `ffmpeg`, `jq`, `yq`, `typos-cli` |
+| **Dev runtimes** | `node`, `nvm`, `pnpm`, `uv` |
 | **Containers** | `docker`, `colima`, `act` (local GitHub Actions) |
+| **AI tools** | `agent-browser`, `vercel-cli` |
 | **Fonts** | JetBrains Mono, Fira Code, Mononoki, Roboto Mono, and more (all Nerd Font variants) |
 | **Apps** | Alacritty, VS Code, Google Chrome, Rectangle, Spotify, Multipass |
-| **VS Code extensions** | Copilot, Vim, Docker, Python, TOML, GitHub Actions |
 
 ### Linux Installation Details
 
@@ -176,26 +257,12 @@ The `setup` command performs these steps in order:
 - Tools: `rclone`, `aria2`, `ansible`, `exiftool`
 - Utilities: `fontconfig`, `unzip`, `zip`, `ca-certificates`
 
-**Shared tools** (`install.d/shared/` — also installed on Alpine):
-- `lazygit`, `zoxide`, `yq`, `uv`
-- **Nerd Fonts**: DroidSansMono, FiraCode, JetBrainsMono, Meslo, Mononoki, RobotoMono, SourceCodePro, SymbolsOnly
-
-**Linux-only tools** (`install.d/linux/`):
-- `gh` CLI, `fzf` (latest from GitHub), `just`, `docker`, `docker-compose` plugin
-- `tailscale`, `nodejs` LTS, `vercel`, `gemini-cli`, `opencode`, `claude`
-
 **GUI apps** (`install.d/linux-gui/` — headful environments only):
 - VS Code, VS Code Insiders, Google Chrome (amd64 only), Firefox, VLC, Alacritty, Android Studio
 
-### Alpine Installation Details
-
-**apk packages** (`meta/packages/alpine.packages`): `git`, `curl`, `zsh`, `tmux`, `fzf`, `jq`, `rclone`, `aria2`, `ffmpeg`, and more.
-
-**Shared tools** (`install.d/shared/`): same as Linux shared tools above.
-
 ## Profiles
 
-Profiles control git identity and (on macOS) which Homebrew packages are installed. Linux and Alpine use the same package lists regardless of profile.
+Profiles control git identity and (on macOS) which Homebrew packages are installed. Linux uses the same package lists regardless of profile.
 
 On re-runs, the active profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles. Fresh machines default to `personal`.
 
@@ -210,7 +277,7 @@ Available profiles:
 
 ### Homebrew Packages (macOS only)
 
-Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
+Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. Core CLI tools are in both profiles; only genuinely profile-specific tools differ. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
 
 ```bash
 ./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal
@@ -240,7 +307,6 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 |-------|---------|
 | `doc-coauthoring` | Structured workflow for co-authoring documentation |
 | `dotfiles` | Expert guidance for managing this dotfiles repo |
-| `my-voice` | Internal communications in Travis's voice |
 | `skill-creator` | Create, modify, and evaluate agent skills |
 
 To add a new skill, create a directory under `meta/skills/` containing a `SKILL.md` file. It will be picked up automatically without re-running setup.
@@ -417,23 +483,40 @@ grmt /path/to/worktree  # remove specific worktree
 Create a single file — no existing scripts need editing:
 
 ```bash
-# For a tool available on all Linux-family platforms:
+# Cross-platform (must work on macOS + Linux without platform guards):
 meta/scripts/install.d/shared/<NN>-toolname.sh
 
-# For a Linux-only tool:
+# Linux-only (apt-specific, Linux paths, etc.):
 meta/scripts/install.d/linux/<NN>-toolname.sh
 ```
 
-Template:
+Template for `shared/`:
 ```bash
 #!/bin/bash
 # toolname — short description
 command -v toolname &>/dev/null && return 0
+[ -f "$HOME/.local/bin/toolname" ] && return 0  # fallback for ~/.local/bin installers
 echo "Installing toolname..."
 curl -fsSL https://toolname.dev/install.sh | bash
 ```
 
-Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`) and `gh_latest_version OWNER REPO` (from `lib/github.sh`) as needed.
+Template for npm tools in `shared/` (number ≥74):
+```bash
+#!/bin/bash
+# toolname — short description
+command -v toolname &>/dev/null && return 0
+command -v npm &>/dev/null || { echo "  Skipped toolname (npm not found)"; return 0; }
+echo "Installing toolname..."
+# Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
+NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
+if [[ -w "$NPM_PREFIX" ]]; then
+  npm install -g toolname
+else
+  $SUDO npm install -g toolname
+fi
+```
+
+Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`) and `gh_latest_version OWNER REPO` (from `lib/github.sh`) as needed. Never hardcode versions.
 
 ### New stow package
 

@@ -1,3 +1,4 @@
+tap "atlassian/homebrew-acli"
 tap "hashicorp/tap"
 tap "homebrew/bundle"
 tap "http4k/tap"

@@ -35,5 +35,8 @@
     }
   },
   "git.openRepositoryInParentFolders": "always",
-  "python.terminal.activateEnv": false
+  "python.terminal.activateEnv": false,
+  "chat.agentSkillsLocations": {
+    "~/Code/emu/monorepo-worktrees/mlb-skills": true
+  }
 }

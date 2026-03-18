@@ -127,6 +127,26 @@ Every component is designed for safe re-runs:
 - **Skills symlinks** are recreated each run (rm + ln -s) — idempotent
 - **Version detection** uses `gh_latest_version` — always fetches the latest release, never hardcodes versions
 
+## Testing Linux Changes
+
+Use Multipass to validate changes on a fresh Ubuntu VM:
+
+```bash
+multipass launch --name dotfiles-test --cpus 2 --memory 2G --disk 10G 24.04
+multipass exec dotfiles-test -- bash -c "\
+  sudo apt-get update -qq && sudo apt-get install -y -qq git > /dev/null 2>&1 && \
+  git clone https://github.com/baksha97/dotfiles.git ~/dotfiles && \
+  cd ~/dotfiles && ./main.sh setup personal"
+```
+
+Verify idempotency by running setup again — all tools should skip. Clean up with `multipass delete dotfiles-test && multipass purge`.
+
+## Common Pitfalls
+
+- **`~/.local/bin` not on PATH**: Tools installed via curl-to-bash (zoxide, uv, pnpm, claude) land in `~/.local/bin`, which isn't on `$PATH` in non-interactive bash. `command -v` will miss them on re-runs. Always add a fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
+- **Release asset naming varies**: GitHub release archives use inconsistent naming (lazygit uses `arm64` not `aarch64`, yq uses `linux` not `Linux`). Always check the actual asset names via the GitHub API before writing download URLs.
+- **Verify upstream install scripts are cross-platform**: Before putting a curl-to-bash installer in `shared/`, confirm the upstream script handles both macOS and Linux. If it only works on one platform, it belongs in `linux/`.
+
 ## Key Files
 
 | File | Purpose |

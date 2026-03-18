@@ -1,7 +1,7 @@
 #!/bin/bash
 # setup-linux.sh — Linux (Debian/Ubuntu) bootstrap.
 # Adding a new CLI tool: create meta/scripts/install.d/linux/<NN>-toolname.sh
-# Adding a shared tool (Linux + Alpine): create meta/scripts/install.d/shared/<NN>-toolname.sh
+# Adding a shared tool: create meta/scripts/install.d/shared/<NN>-toolname.sh
 # Adding a GUI app: create meta/scripts/install.d/linux-gui/<NN>-appname.sh
 
 set -e
@@ -38,9 +38,15 @@ if [[ "$SHELL" != *"/zsh" ]]; then
 fi
 
 # ── CLI tool installers ───────────────────────────────────────────────────────
-# Each file in install.d/shared/ and install.d/linux/ installs one tool.
+# Merge shared/ and linux/ scripts, sorted by filename so numbering controls
+# global install order (e.g. linux/70-node runs before shared/80-vercel).
 shopt -s nullglob
-for f in "$INSTALL_D/shared/"*.sh "$INSTALL_D/linux/"*.sh; do
+readarray -t install_scripts < <(
+  for f in "$INSTALL_D/shared/"*.sh "$INSTALL_D/linux/"*.sh; do
+    echo "$(basename "$f") $f"
+  done | sort | cut -d' ' -f2-
+)
+for f in "${install_scripts[@]}"; do
   source "$f"
 done
 

@@ -10,7 +10,7 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 ./main.sh alacritty-icon         # Replace Alacritty app icon
 ```
 
-`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh`, `setup-linux.sh`, and `setup-alpine.sh`, with shared logic in `setup-common.sh`.
+`main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh` and `setup-linux.sh`, with shared logic in `setup-common.sh`.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
 
-Linux/Alpine uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
+Linux uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
 
 On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles.
 
@@ -32,9 +32,8 @@ On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` again
 
 | Script | Purpose |
 |--------|---------|
-| `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle from Brewfile.<profile>) |
-| `setup-linux.sh` | Linux bootstrap: sources lib/, loops install.d/shared/ + install.d/linux/, delegates to setup-common.sh |
-| `setup-alpine.sh` | Alpine bootstrap: sources lib/, loops install.d/shared/, delegates to setup-common.sh |
+| `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle from Brewfile.<profile>, loops install.d/shared/) |
+| `setup-linux.sh` | Linux bootstrap: sources lib/, merges install.d/shared/ + install.d/linux/ sorted by filename, delegates to setup-common.sh |
 | `setup-common.sh` | Shared bootstrap: SDKMAN!, loops stow.d/, git profile, agent skills |
 | `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
@@ -51,15 +50,15 @@ meta/scripts/
     github.sh              # gh_latest_version() helper function
     profile.sh             # resolve_profile() — auto-detect or accept explicit profile
   install.d/               # Per-tool installers (sourced in alphabetical order)
-    shared/                # Tools installed on all Linux-family platforms
-    linux/                 # Debian/Ubuntu-only tools
+    shared/                # Cross-platform tools (must work on both macOS + Linux without platform guards)
+    linux/                 # Linux-only tools (apt-specific, Linux paths, etc.)
     linux-gui/             # GUI apps (sourced only when DISPLAY/WAYLAND is set)
   stow.d/                  # One file per stow package (sourced by setup-common.sh)
 ```
 
 ### Adding a new CLI tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (both platforms) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (all platforms) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
@@ -83,23 +82,16 @@ stow_package tool
 
 `stow_backup` backs up and removes real files; symlinks are removed without backup. `stow_package` runs stow against `$STOW_TARGET` (default `$HOME`).
 
-## Linux/Alpine Install Details
+## Linux Install Details
 
 **Linux** (`setup-linux.sh`) installs in this order:
 1. Source `lib/` utilities (profile, arch, sudo, github helpers)
 2. **apt packages** from `meta/packages/linux.packages`
 3. Change shell to zsh
-4. Source `install.d/shared/*.sh` then `install.d/linux/*.sh` (each tool guards with `command -v && return 0`)
+4. Merge `install.d/shared/*.sh` and `install.d/linux/*.sh`, sorted by filename so numbering controls global order
 5. Source `install.d/linux-gui/*.sh` (only when `DISPLAY`/`WAYLAND_DISPLAY`/`XDG_CURRENT_DESKTOP` is set)
 6. Source `setup-common.sh` (SDKMAN!, stow, git profile, agent skills)
 7. Install Gradle and Kotlin via SDKMAN!
-
-**Alpine** (`setup-alpine.sh`) installs in this order:
-1. Source `lib/` utilities
-2. Enable community repo, install **apk packages** from `meta/packages/alpine.packages`
-3. Change shell to zsh
-4. Source `install.d/shared/*.sh`
-5. Source `setup-common.sh`
 
 ## Key Files
 
@@ -107,18 +99,16 @@ stow_package tool
 |------|---------|
 | `meta/scripts/setup-macos.sh` | macOS bootstrap (Homebrew install + bundle) |
 | `meta/scripts/setup-linux.sh` | Linux bootstrap orchestrator (~55 lines) |
-| `meta/scripts/setup-alpine.sh` | Alpine bootstrap orchestrator (~50 lines) |
 | `meta/scripts/setup-common.sh` | Shared bootstrap (SDKMAN!, stow.d loop, git profile, agent skills) |
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
 | `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
-| `meta/scripts/install.d/shared/` | Tool installers for Linux + Alpine |
-| `meta/scripts/install.d/linux/` | Debian/Ubuntu-specific tool installers |
+| `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux) |
+| `meta/scripts/install.d/linux/` | Linux-only tool installers |
 | `meta/scripts/install.d/linux-gui/` | GUI app installers (headful only) |
 | `meta/scripts/stow.d/` | Per-package stow manifests |
 | `meta/packages/linux.packages` | apt package list |
-| `meta/packages/alpine.packages` | apk package list |
 | `stow/zsh/.zshrc` | Zsh config — sources all `~/.zshrc.d/*.zsh` (just the loop, nothing else) |
 | `stow/zsh/.zshrc.d/` | Modular zsh configs, numbered-prefix ordering: `00-` first, `50-` default, `99-` last |
 | `stow/git/.gitconfig` | Global git config including `[include]` for the profile file |

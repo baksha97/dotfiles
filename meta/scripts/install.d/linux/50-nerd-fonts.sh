@@ -1,5 +1,5 @@
 #!/bin/bash
-# nerd-fonts — patched fonts with icons for terminal use
+# nerd-fonts — patched fonts with icons for terminal use (macOS uses brew casks)
 nerd_fonts_version="v3.3.0"
 nerd_fonts=(
   DroidSansMono
@@ -16,6 +16,7 @@ mkdir -p "$font_dir"
 echo "Installing Nerd Fonts..."
 fonts_changed=false
 for font in "${nerd_fonts[@]}"; do
+  # Marker file tracks installed version per font (no binary to command -v)
   marker="$font_dir/.installed-${font}-${nerd_fonts_version}"
   if [[ -f "$marker" ]]; then
     echo "  Skipped $font (already installed)"

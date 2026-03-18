@@ -12,6 +12,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 - **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; `stow -d stow <pkg> -t $HOME --adopt` creates the links.
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
 - **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch.
+- **Two platforms**: macOS and Linux (Debian/Ubuntu). `shared/` scripts must work on both platforms without platform guards; `linux/` scripts run only on Linux.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
 - **`AGENTS.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
 
@@ -32,13 +33,75 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `stow/bin/.local/bin/hcli` | Thin wrapper — discovers homelab repo and delegates to `uv run hcli` |
 | `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, agent skills symlinks |
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
-| `meta/scripts/install.d/shared/` | CLI tool installers for Linux + Alpine |
-| `meta/scripts/install.d/linux/` | Debian/Ubuntu-only installers |
+| `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux without platform guards) |
+| `meta/scripts/install.d/linux/` | Linux-only installers (apt-specific, Linux paths, etc.) |
 | `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `github.sh`, `profile.sh` |
 | `meta/packages/linux.packages` | apt package list |
-| `meta/packages/alpine.packages` | apk package list |
 | `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
 | `meta/homebrew/Brewfile.work` | macOS work Homebrew bundle |
+
+## Cross-Platform Install Architecture
+
+**`shared/` scripts must work on both macOS and Linux without Darwin guards or apt-specific commands.** If a script would fail on macOS, it belongs in `linux/`.
+
+**macOS flow**: `setup-macos.sh` → source libs → brew bundle → loop `shared/` → `setup-common.sh`
+**Linux flow**: `setup-linux.sh` → source libs → apt install → merge `shared/` + `linux/` sorted by filename → `setup-common.sh`
+
+On macOS, Homebrew runs first, so most shared scripts hit their `command -v` guard and skip. On Linux, `shared/` and `linux/` scripts are merged and sorted by filename so numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
+
+### Script numbering
+
+Scripts across both directories share a single number line:
+
+| Range | Purpose | Examples |
+|-------|---------|----------|
+| 10–40 | Standalone tools (no deps) | lazygit, zoxide, yq, uv |
+| 50–60 | Linux-specific standalone tools | nerd-fonts, docker-compose, tailscale |
+| 70–72 | Node.js ecosystem setup | node (linux), nvm (linux) |
+| 74–76 | Package managers depending on node | pnpm, agent-browser |
+| 80–90 | npm-installed CLIs | vercel, gemini-cli |
+| 95–99 | Late installers | opencode, claude |
+
+### Guard patterns for `install.d/` scripts
+
+| Pattern | Where | Example scripts |
+|---------|-------|-----------------|
+| `command -v tool && return 0` | `shared/` and `linux/` | All scripts — standard idempotency guard |
+| `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` | `linux/` | nvm (shell function, not a binary — `command -v` won't find it) |
+| Marker files | `linux/` | nerd-fonts (font files, not a binary — per-font version tracking) |
+
+**`shared/` scripts use only `command -v` guards.** No Darwin checks, no `apt-get` checks, no platform-specific logic in guards. If a script needs those, it belongs in `linux/`.
+
+### npm-installed tools pattern
+
+For tools installed via `npm install -g`, use this template:
+
+```bash
+#!/bin/bash
+# toolname — short description
+command -v toolname &>/dev/null && return 0
+echo "Installing toolname..."
+# Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
+NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
+if [[ -w "$NPM_PREFIX" ]]; then
+  npm install -g toolname
+else
+  $SUDO npm install -g toolname
+fi
+```
+
+npm tools must be numbered ≥74 so they run after `linux/70-node` installs Node.js on Linux. On macOS, brew provides node before the shared loop runs.
+
+### Cross-platform binary downloads
+
+For tools downloaded as platform-specific binaries, detect the OS within the script:
+
+```bash
+YQ_OS="linux"
+[[ "$(uname)" == "Darwin" ]] && YQ_OS="darwin"
+```
+
+Use `$ARCH_GO` (amd64/arm64) and `$ARCH_MUSL` (x86_64/aarch64) from `lib/arch.sh` — never hardcode architecture. `arch.sh` handles both Linux `aarch64` and macOS `arm64`.
 
 ## .zshrc.d Numbered Prefix Convention
 
@@ -79,9 +142,9 @@ Edit `stow/zsh/.zshrc.d/50-aliases.zsh`. Group by topic with a comment header.
 
 Add to the appropriate `50-utils-*.zsh` file, or create `stow/zsh/.zshrc.d/50-utils-<topic>.zsh` for a new domain. `.zshrc` auto-sources all `~/.zshrc.d/*.zsh` files.
 
-## Adding a New CLI Tool (Linux/Alpine)
+## Adding a New CLI Tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` using alphabetical/numeric ordering:
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (all platforms) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
@@ -96,8 +159,11 @@ Rules:
 - Guard with `command -v ... && return 0` for idempotency
 - Use `$SUDO`, `$ARCH`, `$ARCH_GO`, `$ARCH_MUSL` from `lib/` — never hardcode
 - Use `gh_latest_version OWNER REPO` from `lib/github.sh` for version detection
+- **`shared/` scripts must not contain Darwin guards, `apt-get` guards, or any platform-specific conditionals in their guards** — if a script needs those, put it in `linux/`
+- npm-dependent tools go in `shared/` (npm works cross-platform) but must be numbered ≥74
+- Linux-specific install methods (apt, Linux font paths, shell functions without a binary) go in `linux/`
 
-For macOS-only tools, add to the appropriate `Brewfile.<profile>` instead.
+For macOS-only tools, add to **both** `Brewfile.personal` and `Brewfile.work` unless genuinely profile-specific.
 
 ## Adding a New Stow Package
 
@@ -134,6 +200,11 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 
 - [ ] `install.d/` scripts use `return`, not `exit`
 - [ ] `install.d/` scripts guard with `command -v tool &>/dev/null && return 0`
+- [ ] `shared/` scripts contain no Darwin guards, apt-get guards, or platform conditionals in guards
+- [ ] Scripts needing platform-specific guards (Darwin checks, apt-get checks, marker files) are in `linux/`
+- [ ] npm-dependent scripts in `shared/` are numbered ≥74 (after `linux/70-node`)
+- [ ] Cross-platform binary scripts detect OS inline (`uname`) and use `$ARCH_GO`/`$ARCH_MUSL` — never hardcode
+- [ ] Core CLI tools are in both Brewfile.personal and Brewfile.work (not profile-specific unless genuinely different)
 - [ ] New zsh config goes in its own `.zshrc.d/` file, not appended to `.zshrc`
 - [ ] Path entries go in `00-path.zsh` only
 - [ ] Numbered prefixes control load order: `00-` first, `50-` default, `99-` last — new files default to `50-`

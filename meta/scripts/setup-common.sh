@@ -16,32 +16,6 @@ find "$DOTFILES_DIR" -name .DS_Store -delete
 backup_dir="$DOTFILES_DIR/backup/$(date +%Y-%m-%d_%H-%M-%S)"
 backed_up=false
 
-# Migrate old layout: root alacritty/ folder was the former stow package, which caused
-# ~/.config to be symlinked entirely. Device-specific configs accumulated inside it.
-# Move them to stow/alacritty/.config/ (gitignored) and remove the old folder.
-if [ -d "$DOTFILES_DIR/alacritty" ] && [ ! -L "$DOTFILES_DIR/alacritty" ]; then
-  echo "  Detected old alacritty/ layout — migrating device-specific configs..."
-  old_config="$DOTFILES_DIR/alacritty/.config"
-  new_config="$DOTFILES_DIR/stow/alacritty/.config"
-  if [ -d "$old_config" ]; then
-    mkdir -p "$backup_dir"
-    backed_up=true
-    cp -R "$old_config/" "$backup_dir/config-from-alacritty/"
-    for d in "$old_config"/*/; do
-      name="$(basename "$d")"
-      [ "$name" = "alacritty" ] && continue
-      if [ ! -e "$new_config/$name" ]; then
-        cp -R "$d" "$new_config/$name"
-        echo "    Migrated: $name"
-      else
-        echo "    Skipped (already in stow): $name"
-      fi
-    done
-  fi
-  rm -rf "$DOTFILES_DIR/alacritty"
-  echo "  Removed old alacritty/ folder"
-fi
-
 # ── Stow helpers ─────────────────────────────────────────────────────────────
 
 # stow_backup TARGET

@@ -1,10 +1,13 @@
-#!/bin/zsh
+#!/bin/bash
 # setup-macos.sh — macOS bootstrap using Homebrew.
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/profile.sh"
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+LIB="$DOTFILES_DIR/meta/scripts/lib"
+INSTALL_D="$DOTFILES_DIR/meta/scripts/install.d"
+
+source "$LIB/profile.sh"
 
 profile="$(resolve_profile "${1:-}")"
 if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
@@ -12,6 +15,10 @@ if [ ! -f "$DOTFILES_DIR/stow/git/profiles/$profile" ]; then
   exit 1
 fi
 echo "Using profile: $profile"
+
+source "$LIB/sudo.sh"
+source "$LIB/arch.sh"
+source "$LIB/github.sh"
 
 # Show hidden files in Finder
 defaults write com.apple.finder AppleShowAllFiles YES
@@ -34,6 +41,11 @@ brew update
 brew bundle --verbose --file="$DOTFILES_DIR/meta/homebrew/Brewfile.$profile"
 
 # Install tools that use native installers
-source "$SCRIPT_DIR/install.d/shared/99-claude.sh"
+# Each file in install.d/shared/ installs one tool (works on all platforms).
+shopt -s nullglob
+for f in "$INSTALL_D/shared/"*.sh; do
+  source "$f"
+done
+shopt -u nullglob
 
-source "$SCRIPT_DIR/setup-common.sh"
+source "$DOTFILES_DIR/meta/scripts/setup-common.sh"

@@ -1,6 +1,6 @@
 # Dotfiles
 
-Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS, Linux (Debian/Ubuntu), or Alpine machine with shell, editor, terminal, git, and AI agent skill configurations.
+Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/) and driven through a single `main.sh` entrypoint. One command bootstraps a fresh macOS or Linux (Debian/Ubuntu) machine with shell, editor, terminal, git, and AI agent skill configurations.
 
 ## Table of Contents
 
@@ -61,7 +61,7 @@ stow/
 
 The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow package requires only dropping one file** — no edits to existing scripts.
 
-- `meta/scripts/install.d/shared/` — tool installers for all Linux-family platforms
+- `meta/scripts/install.d/shared/` — tool installers for all platforms (macOS + Linux)
 - `meta/scripts/install.d/linux/` — Debian/Ubuntu-only tools
 - `meta/scripts/install.d/linux-gui/` — GUI apps (headful only)
 - `meta/scripts/stow.d/` — one stow manifest per package
@@ -102,8 +102,7 @@ dotfiles/
     │   ├── Brewfile.personal
     │   └── Brewfile.work
     ├── packages/                   # Linux package lists
-    │   ├── linux.packages          # apt packages for Debian/Ubuntu setup
-    │   └── alpine.packages         # apk packages for Alpine setup
+    │   └── linux.packages          # apt packages for Debian/Ubuntu setup
     └── scripts/                    # Implementation scripts
         ├── lib/                    # Shared utilities (sourced first by platform scripts)
         │   ├── arch.sh             # ARCH_GO / ARCH_MUSL detection
@@ -117,7 +116,6 @@ dotfiles/
         ├── stow.d/                 # Per-package stow manifests (one file = one package)
         ├── setup-macos.sh          # macOS bootstrap (Homebrew)
         ├── setup-linux.sh          # Linux bootstrap orchestrator
-        ├── setup-alpine.sh         # Alpine bootstrap orchestrator
         ├── setup-common.sh         # Shared stow/git/skills setup
         ├── backup.sh               # Brewfile dump
         └── alacritty-icon.sh       # Icon replacement
@@ -151,7 +149,6 @@ The `setup` command performs these steps in order:
 3. **Platform-specific package installation:**
    - **macOS**: Install Homebrew (if missing), then install from `meta/homebrew/Brewfile.<profile>`
    - **Linux**: Install apt packages from `meta/packages/linux.packages`, then source each tool installer in `install.d/`
-   - **Alpine**: Install apk packages from `meta/packages/alpine.packages`, then source shared tool installers
 4. **Install SDKMAN!** for JVM SDK management
 5. **Stow all packages** — each `stow.d/` script backs up and links one package
 6. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
@@ -176,26 +173,20 @@ The `setup` command performs these steps in order:
 - Tools: `rclone`, `aria2`, `ansible`, `exiftool`
 - Utilities: `fontconfig`, `unzip`, `zip`, `ca-certificates`
 
-**Shared tools** (`install.d/shared/` — also installed on Alpine):
+**Shared tools** (`install.d/shared/` — installed on all platforms):
 - `lazygit`, `zoxide`, `yq`, `uv`
 - **Nerd Fonts**: DroidSansMono, FiraCode, JetBrainsMono, Meslo, Mononoki, RobotoMono, SourceCodePro, SymbolsOnly
 
 **Linux-only tools** (`install.d/linux/`):
 - `gh` CLI, `fzf` (latest from GitHub), `just`, `docker`, `docker-compose` plugin
-- `tailscale`, `nodejs` LTS, `vercel`, `gemini-cli`, `opencode`, `claude`
+- `tailscale`, `opencode`
 
 **GUI apps** (`install.d/linux-gui/` — headful environments only):
 - VS Code, VS Code Insiders, Google Chrome (amd64 only), Firefox, VLC, Alacritty, Android Studio
 
-### Alpine Installation Details
-
-**apk packages** (`meta/packages/alpine.packages`): `git`, `curl`, `zsh`, `tmux`, `fzf`, `jq`, `rclone`, `aria2`, `ffmpeg`, and more.
-
-**Shared tools** (`install.d/shared/`): same as Linux shared tools above.
-
 ## Profiles
 
-Profiles control git identity and (on macOS) which Homebrew packages are installed. Linux and Alpine use the same package lists regardless of profile.
+Profiles control git identity and (on macOS) which Homebrew packages are installed. Linux uses the same package lists regardless of profile.
 
 On re-runs, the active profile is auto-detected by comparing `.gitconfig-profile` against `stow/git/profiles/*`. Pass a profile name explicitly only to switch profiles. Fresh machines default to `personal`.
 

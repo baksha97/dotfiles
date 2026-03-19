@@ -26,7 +26,7 @@
 BAR_WIDTH=10
 CONTEXT_WARN_PCT=70
 CONTEXT_CRIT_PCT=90
-DEFAULT_CTX_LIMIT=200000
+DEFAULT_CTX_LIMIT=1000000
 
 # Colors (using $'...' for proper escape sequence interpretation)
 C_RESET=$'\033[0m'
@@ -45,8 +45,15 @@ C_DIM=$'\033[2m'
 
 INPUT=$(cat)
 
-MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "unknown"')
 MODEL_ID=$(echo "$INPUT" | jq -r '.model.id // ""')
+
+# Short model label from ID (e.g. "claude-opus-4-6" → "opus-4.6")
+case "$MODEL_ID" in
+    *opus*)   MODEL=$(echo "$MODEL_ID" | sed -E 's/.*opus-([0-9]+)-([0-9]+).*/opus-\1.\2/') ;;
+    *sonnet*) MODEL=$(echo "$MODEL_ID" | sed -E 's/.*sonnet-([0-9]+)-([0-9]+).*/sonnet-\1.\2/') ;;
+    *haiku*)  MODEL=$(echo "$MODEL_ID" | sed -E 's/.*haiku-([0-9]+)-([0-9]+).*/haiku-\1.\2/') ;;
+    *)        MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "unknown"') ;;
+esac
 CWD=$(echo "$INPUT" | jq -r '.workspace.current_dir // "."')
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // ""')
 DIR=$(basename "$CWD")
@@ -127,23 +134,6 @@ get_session_duration() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Cost Calculation
-# ─────────────────────────────────────────────────────────────────────────────
-
-calculate_cost() {
-    local total_in=$1 out_tok=$2
-    local price_in price_out
-
-    case "$MODEL_ID" in
-        *opus*)   price_in=15;   price_out=75 ;;
-        *haiku*)  price_in=0.25; price_out=1.25 ;;
-        *)        price_in=3;    price_out=15 ;;  # sonnet/default
-    esac
-
-    awk "BEGIN {printf \"%.2f\", ($total_in * $price_in / 1000000) + ($out_tok * $price_out / 1000000)}"
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Context Progress Bar
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -178,7 +168,7 @@ build_progress_bar() {
 # ─────────────────────────────────────────────────────────────────────────────
 
 main() {
-    local total_in out_tok ctx_pct duration cost git_info
+    local total_in out_tok ctx_pct duration git_info
 
     read -r total_in out_tok <<< "$(get_token_metrics)"
     total_in=${total_in:-0}
@@ -186,16 +176,15 @@ main() {
 
     ctx_pct=$(awk "BEGIN {printf \"%.1f\", ($total_in / $DEFAULT_CTX_LIMIT) * 100}")
     duration=$(get_session_duration)
-    cost=$(calculate_cost "$total_in" "$out_tok")
     git_info=$(get_git_info)
 
     # Output
-    printf "%b➜%b  %b%s%b%s %b[%s]%b %b[↑%dk/↓%dk \$%s]%b %s %b⏱ %s%b" \
+    printf "%b➜%b  %b%s%b%s %b[%s]%b %b[↑%dk/↓%dk]%b %s %b⏱ %s%b" \
         "$C_BOLD_GREEN" "$C_RESET" \
         "$C_CYAN" "$DIR" "$C_RESET" \
         "$git_info" \
         "$C_DIM" "$MODEL" "$C_RESET" \
-        "$C_DIM" "$((total_in / 1000))" "$((out_tok / 1000))" "$cost" "$C_RESET" \
+        "$C_DIM" "$((total_in / 1000))" "$((out_tok / 1000))" "$C_RESET" \
         "$(build_progress_bar "$ctx_pct")" \
         "$C_CYAN" "$duration" "$C_RESET"
 }

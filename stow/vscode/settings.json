@@ -35,5 +35,5 @@
     }
   },
   "git.openRepositoryInParentFolders": "always",
-  "python.terminal.activateEnv": false
+  "python-envs.terminal.autoActivationType": "off"
 }

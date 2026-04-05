@@ -1,0 +1,17 @@
+name: "Android CI Local"
+workflow: ".github/workflows/Android-Integrity.yml"
+tasks:
+  - id: spotless
+    name: "Spotless Apply (Linter)"
+    workflow_step: "Spotless Apply"
+    env:
+      GRADLE_FLAGS: "--parallel"
+  - id: xplat
+    name: "Verify Xplat Integrity"
+    workflow_step: "Verify Xplat Source Integrity"
+  - id: libraries
+    name: "Verify Libraries"
+    workflow_step: "Verify Library Source Integrity"
+  - id: mobile
+    name: "Verify Mobile App"
+    workflow_step: "Verify Mobile source integrity"

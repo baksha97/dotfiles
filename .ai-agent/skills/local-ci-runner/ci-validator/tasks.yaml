@@ -1,0 +1,16 @@
+name: "CI Workflow Validator"
+description: "Locally validates GitHub Actions workflows and integrity"
+tasks:
+  - id: workflow-syntax
+    name: "Workflow Syntax"
+    command: "find .github/workflows -name '*.yml' -exec action-validator {} +"
+  - id: secret-usage
+    name: "Secrets Check"
+    command: "grep -r 'secrets.' .github/workflows/"
+  - id: shellcheck
+    name: "Script Lint"
+    command: "find scripts -name '*.sh' -exec shellcheck {} +"
+  - id: lint-yaml
+    name: "YAML Lint"
+    command: "yamllint .github/workflows/"
+port: 8081

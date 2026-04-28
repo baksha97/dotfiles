@@ -1,0 +1,14 @@
+[projects."/home/proxmox/homelab"]
+trust_level = "trusted"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[mcp_servers.maestro]
+url = "https://maestro.tb-infra.com/mcp"

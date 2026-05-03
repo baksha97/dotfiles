@@ -1,13 +1,16 @@
-name: Run Script on macOS
+name: Setup Smoke Tests
 on:
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  run-script:
+  smoke:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup
+      - name: Install test dependencies
+        run: brew install stow
+      - name: Smoke test setup
         run: |
-          ./main.sh setup
+          ./main.sh test

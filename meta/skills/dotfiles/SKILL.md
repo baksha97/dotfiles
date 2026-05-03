@@ -9,9 +9,9 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 
 ## Architecture at a Glance
 
-- **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; `stow -d stow <pkg> -t $HOME --adopt` creates the links.
+- **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; setup defaults to `stow --restow`, and `./main.sh setup --adopt` is only for first setup or explicit repair.
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
-- **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch.
+- **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch. Pass `--skip-brew`/`--skip-platform-packages` on macOS to bypass Homebrew install/update/bundle.
 - **Two platforms**: macOS and Linux (Debian/Ubuntu). Both follow an identical script structure that converges on `setup-common.sh`.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
 - **`AGENTS.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
@@ -35,7 +35,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux without platform guards) |
 | `meta/scripts/install.d/linux/` | Linux-only installers (apt-specific, Linux paths, etc.) |
-| `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `github.sh`, `profile.sh` |
+| `meta/scripts/lib/` | Shared utilities: `args.sh`, `arch.sh`, `sudo.sh`, `github.sh`, `npm.sh`, `profile.sh` |
 | `meta/packages/linux.packages` | apt package list |
 | `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
 | `meta/homebrew/Brewfile.work` | macOS work Homebrew bundle |
@@ -45,15 +45,15 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 Both platform scripts follow the same structure:
 
 ```
-DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh
-→ platform packages (brew bundle / apt-get)
+DOTFILES_DIR → LIB → INSTALL_D → source args/profile.sh → resolve + validate profile
+→ source sudo.sh → source arch.sh → source github.sh → source npm.sh
+→ platform packages (brew bundle / apt-get unless skipped)
 → install.d loop → setup-common.sh
 ```
 
 **`shared/` scripts must work on both macOS and Linux without platform guards.** No Darwin checks, no `apt-get` checks, no platform-specific conditionals in guards. If a script would fail on macOS, it belongs in `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's selecting the right binary, not guarding execution.
 
-**macOS**: `brew bundle` runs first, so most shared scripts hit their `command -v` guard and skip.
+**macOS**: `brew bundle` runs first, so most shared scripts hit their guards and skip. With `--skip-brew`, the Homebrew step is bypassed and setup relies on already-installed prerequisites plus shared installers.
 **Linux**: `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ### Script numbering
@@ -79,7 +79,7 @@ Every script must be safe to re-run. Use the appropriate guard:
 | `[ -f "$HOME/.local/bin/tool" ] && return 0` | Fallback — tool installs to `~/.local/bin` which isn't on PATH in non-interactive bash | `shared/` (after `command -v`) |
 | `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` | Shell function, not a binary | `linux/` (nvm) |
 | Marker files (`.installed-Name-vX.Y.Z`) | No binary to check, versioned assets | `linux/` (nerd-fonts) |
-| `command -v npm \|\| { echo "Skipped..."; return 0; }` | Prerequisite guard — npm must be available | `shared/` (npm tools) |
+| `npm_install_global_if_needed PACKAGE BINARY LABEL` | Shared npm guard/update/install policy | `shared/` (npm tools) |
 
 **`shared/` scripts use only `command -v` guards (+ fallback path checks + prerequisite guards).** No Darwin checks, no `apt-get` checks. If a script needs those, it belongs in `linux/`.
 
@@ -90,16 +90,7 @@ For tools installed via `npm install -g`, use this template (number ≥74):
 ```bash
 #!/bin/bash
 # toolname — short description
-command -v toolname &>/dev/null && return 0
-command -v npm &>/dev/null || { echo "  Skipped toolname (npm not found)"; return 0; }
-echo "Installing toolname..."
-# Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
-NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
-if [[ -w "$NPM_PREFIX" ]]; then
-  npm install -g toolname
-else
-  $SUDO npm install -g toolname
-fi
+npm_install_global_if_needed toolname toolname toolname
 ```
 
 npm tools must be numbered ≥74 so they run after `linux/70-node` installs Node.js on Linux. On macOS, brew provides node before the shared loop runs.
@@ -203,8 +194,8 @@ stow_backup "$HOME/.toolrc"
 stow_package tool
 ```
 
-- `stow_backup`: backs up real files, silently removes symlinks
-- `stow_package`: runs stow against `$STOW_TARGET` (defaults to `$HOME`)
+- `stow_backup`: path-backs up real files and removes them; explicit backups are not adopted back into the repo
+- `stow_package`: runs `stow --restow` by default or `stow --adopt` when `./main.sh setup --adopt` is used
 - Set `STOW_TARGET` before calling `stow_package` for non-`$HOME` targets (e.g., claude, vscode)
 
 ## Agent Skills
@@ -239,11 +230,11 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 - [ ] Device-specific configs inside `stow/alacritty/.config/` (non-`alacritty/`) are gitignored
 - [ ] `stow/git/.gitconfig-profile` is gitignored — never commit it
 - [ ] `backup/` is for timestamped pre-existing config snapshots — never edit these
-- [ ] Adding a new file to an existing stow package requires re-running stow/setup (`--adopt` prevents tree folding)
+- [ ] Adding a new file to an existing no-folding stow package requires re-running stow/setup
 
 ## Stow `--adopt` and Tree Folding
 
-Stow's `--adopt` flag and tree folding (directory-level symlinks) are mutually exclusive. With `--adopt`, stow pulls pre-existing files into the repo and creates **per-file symlinks**, so the parent directory remains a real directory. This means adding a new file to a stow package in the repo (e.g., a new `.zshrc.d/*.zsh` file) won't appear at the target until you re-run stow or setup. This is a deliberate tradeoff — `--adopt` protects pre-existing configs from being overwritten.
+Normal setup uses `stow --restow` so app-generated local changes are not silently adopted into the repo on reruns. Use `./main.sh setup --adopt` for first setup or explicit conflict repair. Stow's `--adopt` flag and tree folding (directory-level symlinks) are mutually exclusive. With `--adopt`, stow pulls pre-existing files into the repo and creates **per-file symlinks**, so the parent directory remains a real directory.
 
 ## Debugging Stow Conflicts
 
@@ -251,4 +242,4 @@ If stow fails with a conflict:
 ```bash
 stow -d stow <pkg> -t "$HOME" --adopt -n  # dry run
 ```
-The `--adopt` flag moves conflicting real files into the repo and symlinks them. If the conflict is a `.DS_Store`, `setup-common.sh` auto-cleans them before stowing.
+The `--adopt` flag moves conflicting real files into the repo and symlinks them. If the conflict is a `.DS_Store`, `setup-common.sh` auto-cleans them before stowing. Use `./main.sh setup --dry-run` for a whole-setup simulation.

@@ -5,22 +5,32 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 ## Commands
 
 ```bash
-./main.sh setup [profile]        # Bootstrap the system — auto-detects OS, auto-detects profile on re-run
-./main.sh brew backup [profile]  # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
-./main.sh alacritty-icon         # Replace Alacritty app icon
+./main.sh setup [profile] [flags]  # Bootstrap the system — auto-detects OS, auto-detects profile on re-run
+./main.sh brew backup [profile]    # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
+./main.sh test                     # Run setup smoke checks
+./main.sh alacritty-icon           # Replace Alacritty app icon
 ```
 
 `main.sh` is the single entrypoint — it sources scripts from `meta/scripts/` rather than running them as subprocesses. OS detection happens in `main.sh`; platform-specific logic lives in `setup-macos.sh` and `setup-linux.sh`, with shared logic in `setup-common.sh`.
+
+Setup flags:
+- `--adopt`: let Stow adopt remaining unhandled conflicts; use for first setup or explicit repair
+- `--dry-run` / `-n`: show setup and stow actions without mutating files
+- `--skip-platform-packages`: skip Homebrew/apt package installation
+- `--skip-brew` / `--no-brew`: macOS alias for `--skip-platform-packages`
+- `--skip-installers`, `--skip-sdkman`, `--skip-stow`: skip individual phases
 
 ## Architecture
 
 **Two platforms**: macOS and Linux (Debian/Ubuntu). Both share an identical script structure and converge on `setup-common.sh` for stow, git, and skills.
 
-**GNU Stow** is the core mechanism. Each directory under `stow/` mirrors `$HOME` and gets symlinked there via `stow -d stow <pkg> -t "$HOME" --adopt`. The `--adopt` flag moves pre-existing files into the repo and creates symlinks in place.
+**GNU Stow** is the core mechanism. Each directory under `stow/` mirrors `$HOME` and gets symlinked there. Normal setup uses `stow --restow`; pass `--adopt` only for first setup or explicit repair, because adoption can move local config into the repo.
 
 **Profiles** (`personal` / `work`) control:
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
 2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
+
+Pass `--skip-brew` or `--skip-platform-packages` on macOS to skip Homebrew install/update/bundle while still running shared installers and `setup-common.sh`.
 
 Linux uses package list files in `meta/packages/` plus `install.d/` scripts regardless of profile.
 
@@ -35,23 +45,24 @@ On re-runs, the profile is auto-detected by comparing `.gitconfig-profile` again
 Both platform scripts follow the same structure:
 
 ```
-DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh
-→ platform packages (brew bundle / apt-get)
+DOTFILES_DIR → LIB → INSTALL_D → source args/profile.sh → resolve + validate profile
+→ source sudo.sh → source arch.sh → source github.sh → source npm.sh
+→ platform packages (brew bundle / apt-get unless skipped)
 → install.d/shared/ loop (+ linux/ merged on Linux)
 → setup-common.sh (SDKMAN!, stow.d loop, git profile, agent skills)
 ```
 
-**macOS**: `brew bundle` installs most tools first, so shared scripts hit `command -v` guards and skip.
+**macOS**: `brew bundle` installs most tools first, so shared scripts hit guards and skip. With `--skip-brew`, the Homebrew step is bypassed and setup relies on already-installed prerequisites plus shared installers.
 **Linux**: `shared/` and `linux/` scripts are merged and sorted by filename — numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ## Setup Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `setup-macos.sh` | macOS bootstrap (Homebrew install + bundle, loops install.d/shared/) |
+| `setup-macos.sh` | macOS bootstrap (optional Homebrew install + bundle, loops install.d/shared/) |
 | `setup-linux.sh` | Linux bootstrap (apt install, merges install.d/shared/ + linux/ sorted by filename) |
 | `setup-common.sh` | Shared bootstrap: SDKMAN!, loops stow.d/, git profile, agent skills |
+| `test-setup.sh` | Local smoke checks: shell syntax, optional shellcheck, fake-HOME stow dry-run |
 | `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
 
@@ -112,17 +123,17 @@ stow_backup "$HOME/.toolrc"
 stow_package tool
 ```
 
-`stow_backup` backs up and removes real files; symlinks are removed without backup. `stow_package` runs stow against `$STOW_TARGET` (default `$HOME`).
+`stow_backup` creates path-preserving backups under `backup/<timestamp>/`; symlinks are removed without backup. Explicit `stow_backup` targets are backed up and removed before stow, even with `--adopt`, so generated files like the selected git profile are not pulled back into the repo. `stow_package` runs stow against `$STOW_TARGET` (default `$HOME`).
 
 ## Idempotency
 
 Every component is designed for safe re-runs:
 
 - **`install.d/` scripts** guard with `command -v tool && return 0`. For tools that install to `~/.local/bin` (not on PATH in non-interactive bash), add a fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
-- **npm-installed tools** add `command -v npm || { echo "Skipped ..."; return 0; }` as a prerequisite guard
+- **npm-installed tools** use `npm_install_global_if_needed PACKAGE BINARY LABEL` from `lib/npm.sh`
 - **Nerd fonts** use per-font marker files (`.installed-FontName-vX.Y.Z`) for version-aware idempotency
 - **nvm** checks `[ -s "$HOME/.nvm/nvm.sh" ]` since it's a shell function, not a binary
-- **`stow --adopt`** is idempotent — re-stowing adopted files is a no-op
+- **Stow packages** default to `stow --restow`; use `./main.sh setup --adopt` only for first setup/repair
 - **Git profile** copy is guarded by `cmp -s` — skips if unchanged
 - **Skills symlinks** are recreated each run (rm + ln -s) — idempotent
 - **Version detection** uses `gh_latest_version` — always fetches the latest release, never hardcodes versions
@@ -157,6 +168,8 @@ Verify idempotency by running setup again — all tools should skip. Clean up wi
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
+| `meta/scripts/lib/args.sh` | Shared setup flag parsing |
+| `meta/scripts/lib/npm.sh` | Idempotent global npm installer helper |
 | `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux) |
 | `meta/scripts/install.d/linux/` | Linux-only tool installers |

@@ -25,23 +25,32 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 ```bash
 git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./main.sh setup          # full setup (auto-detects profile, defaults to "personal")
-./main.sh setup work     # full setup with "work" profile
+./main.sh setup --adopt  # first setup: backs up known conflicts and adopts remaining conflicts
+./main.sh setup          # normal rerun: restows existing links
+./main.sh setup work     # setup with the "work" profile
 ```
 
 ### All Commands
 
 ```bash
-./main.sh setup [profile]        # bootstrap the system (auto-detects OS and profile on re-run)
-./main.sh brew backup [profile]  # dump current Homebrew state to Brewfile.<profile>
-./main.sh alacritty-icon         # replace the Alacritty app icon
+./main.sh setup [profile] [flags]  # bootstrap the system (auto-detects OS and profile on re-run)
+./main.sh brew backup [profile]    # dump current Homebrew state to Brewfile.<profile>
+./main.sh test                     # run setup smoke checks
+./main.sh alacritty-icon           # replace the Alacritty app icon
 ```
+
+Useful setup flags:
+- `--adopt` — let Stow adopt remaining unhandled conflicts; use for first setup or explicit repair
+- `--dry-run` / `-n` — show setup and stow actions without mutating files
+- `--skip-platform-packages` — skip Homebrew/apt package installation
+- `--skip-brew` / `--no-brew` — macOS alias for `--skip-platform-packages`
+- `--skip-installers`, `--skip-sdkman`, `--skip-stow` — skip individual phases
 
 ## How It Works
 
 This repository uses **GNU Stow** to manage dotfiles. Each directory inside `stow/` is a "stow package" whose internal structure mirrors where the files should live relative to `$HOME`. Stow creates symlinks from your home directory into this repo, so every config file is version-controlled in one place.
 
-The `--adopt` flag is used during setup, which means if you already have a config file at the target location, Stow moves it into the repo (adopting it) and creates the symlink. After running setup, a `git diff` will show any differences between your existing configs and the repo versions.
+Normal setup uses `stow --restow`, which refreshes existing links without pulling app-generated local changes into the repo. Pass `--adopt` for first setup or explicit repair; known conflicting files are path-backed up and removed first, and Stow can then move remaining conflicts into the matching package. After an adopt run, review `git diff` before committing.
 
 ```
 stow/
@@ -72,10 +81,10 @@ The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow pa
 Both macOS and Linux follow the same setup structure:
 
 ```
-source libs → resolve profile → platform packages → install.d loop → setup-common.sh
+parse args → resolve profile → platform packages → install.d loop → setup-common.sh
 ```
 
-**macOS** (`setup-macos.sh`): Homebrew installs most tools via `brew bundle`, then `shared/` scripts run — most hit their `command -v` guard and skip since brew already installed the tool.
+**macOS** (`setup-macos.sh`): Homebrew installs most tools via `brew bundle`, then `shared/` scripts run — most hit their `command -v` guard and skip since brew already installed the tool. Pass `--skip-brew` or `--skip-platform-packages` to bypass Homebrew install/update/bundle and rely on already-installed tools plus the non-brew shared installers.
 
 **Linux** (`setup-linux.sh`): apt installs base packages, then `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order. This ensures dependencies are respected (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
@@ -106,10 +115,10 @@ Every setup component is designed for safe re-runs:
 | Component | Guard mechanism |
 |-----------|----------------|
 | `install.d/` scripts | `command -v tool && return 0` + fallback path check for `~/.local/bin` installers |
-| npm-installed tools | `command -v npm \|\| { echo "Skipped..."; return 0; }` prerequisite guard |
+| npm-installed tools | `npm_install_global_if_needed package binary label` from `lib/npm.sh` |
 | Nerd fonts (linux) | Per-font marker files (`.installed-FontName-vX.Y.Z`) |
 | nvm (linux) | `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` (shell function, not binary) |
-| `stow --adopt` | Idempotent — re-stowing adopted files is a no-op |
+| Stow packages | Default `stow --restow`; explicit `--adopt` for first setup/repair |
 | Git profile | `cmp -s` guard — skips copy if unchanged |
 | Skills symlinks | Recreated each run (rm + ln -s) |
 | Version detection | `gh_latest_version` — always latest, never hardcoded |
@@ -193,19 +202,21 @@ VS Code target paths:
 The `setup` command performs these steps in order:
 
 1. **Resolve profile** — auto-detects from previous setup or uses explicit argument (defaults to `personal`)
-2. **Source lib utilities** — profile, sudo, arch, github helpers
+2. **Source lib utilities** — args, profile, sudo, arch, github, npm helpers
 3. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
 4. **Platform-specific package installation:**
-   - **macOS**: Install Homebrew (if missing), then `brew bundle` from `meta/homebrew/Brewfile.<profile>`
-   - **Linux**: Install apt packages from `meta/packages/linux.packages`, change shell to zsh
+   - **macOS**: Install Homebrew (if missing), then `brew bundle` from `meta/homebrew/Brewfile.<profile>` unless skipped
+   - **Linux**: Install apt packages from `meta/packages/linux.packages`, change shell to zsh unless skipped
 5. **Install.d loop** — each script installs one tool with idempotency guards
    - **macOS**: loops `shared/` only (brew already installed most tools)
    - **Linux**: merges `shared/` + `linux/` sorted by filename for dependency ordering
 6. **Install SDKMAN!** for JVM SDK management
-7. **Stow all packages** — each `stow.d/` script backs up and links one package
+7. **Stow all packages** — each `stow.d/` script backs up conflicts and restows one package; `--adopt` enables adoption
 8. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
 9. **Symlink Agent Skills** — makes skills discoverable by Copilot, Cursor, and other agents
 10. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
+
+`--dry-run` skips package installers and SDKMAN, then runs stow planning with `--simulate`.
 
 ### Tool Installation Matrix
 
@@ -273,11 +284,12 @@ Available profiles:
 ```bash
 ./main.sh setup          # auto-detects profile (defaults to "personal" on fresh machines)
 ./main.sh setup work     # uses "work" profile (switches if different)
+./main.sh setup work --skip-brew  # macOS: use "work" profile without Homebrew install/update/bundle
 ```
 
 ### Homebrew Packages (macOS only)
 
-Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. Core CLI tools are in both profiles; only genuinely profile-specific tools differ. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
+Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. Core CLI tools are in both profiles; only genuinely profile-specific tools differ. During setup, only the matching profile's Brewfile is installed unless `--skip-brew` or `--skip-platform-packages` is passed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
 
 ```bash
 ./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal
@@ -288,7 +300,7 @@ Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`
 
 1. Create `stow/git/profiles/<name>` with `[user]` name and email fields
 2. **macOS only**: Create `meta/homebrew/Brewfile.<name>` with the desired packages
-3. Run `./main.sh setup <name>`
+3. Run `./main.sh setup <name> --adopt` on first setup, or `./main.sh setup <name>` on normal reruns
 
 ## Agent Skills
 
@@ -504,19 +516,10 @@ Template for npm tools in `shared/` (number ≥74):
 ```bash
 #!/bin/bash
 # toolname — short description
-command -v toolname &>/dev/null && return 0
-command -v npm &>/dev/null || { echo "  Skipped toolname (npm not found)"; return 0; }
-echo "Installing toolname..."
-# Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
-NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
-if [[ -w "$NPM_PREFIX" ]]; then
-  npm install -g toolname
-else
-  $SUDO npm install -g toolname
-fi
+npm_install_global_if_needed toolname toolname toolname
 ```
 
-Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`) and `gh_latest_version OWNER REPO` (from `lib/github.sh`) as needed. Never hardcode versions.
+Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`), `gh_latest_version OWNER REPO` (from `lib/github.sh`), and `npm_install_global_if_needed PACKAGE BINARY LABEL` (from `lib/npm.sh`) as needed. Never hardcode versions.
 
 ### New stow package
 
@@ -532,4 +535,4 @@ stow_package tool                  # stows against $HOME by default
 
 For non-`$HOME` targets (like claude or vscode), set `STOW_TARGET` before calling `stow_package`. For `--no-folding` packages, pass the flag directly: `stow_package tool --no-folding`.
 
-3. Run `./main.sh setup` or manually run the stow command.
+3. Run `./main.sh setup --adopt` for first setup/adoption, or `./main.sh setup` to restow existing links.

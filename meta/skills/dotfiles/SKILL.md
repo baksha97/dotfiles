@@ -11,7 +11,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 
 - **GNU Stow** symlinks everything: `stow/<pkg>/` mirrors `$HOME`; setup defaults to `stow --restow`, and `./main.sh setup --adopt` is only for first setup or explicit repair.
 - **Composition pattern**: orchestrator scripts loop over files in a directory. Adding a feature = add one file, never edit the orchestrator.
-- **Profiles** (`personal` / `work`): control git identity and macOS Brewfile. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch. Pass `--skip-brew`/`--skip-platform-packages` on macOS to bypass Homebrew install/update/bundle.
+- **Profiles** (`personal` / `work`): control git identity, profile Brewfile, and VS Code extension list. Auto-detected on re-runs via `lib/profile.sh`; pass explicitly only to switch. Pass `--skip-brew`/`--skip-platform-packages` on macOS to bypass Homebrew install/update/bundle.
 - **Two platforms**: macOS and Linux (Debian/Ubuntu). Both follow an identical script structure that converges on `setup-common.sh`.
 - **`main.sh`** is the single entrypoint — sources scripts, never runs them as subprocesses.
 - **`AGENTS.md`** is the project instructions file. `CLAUDE.md` is a symlink to it for Claude Code compatibility.
@@ -34,11 +34,14 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `meta/scripts/setup-common.sh` | SDKMAN!, stow.d loop, agent skills symlinks |
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux without platform guards) |
+| `meta/scripts/install.d/macos/` | macOS-only post-brew installers |
 | `meta/scripts/install.d/linux/` | Linux-only installers (apt-specific, Linux paths, etc.) |
-| `meta/scripts/lib/` | Shared utilities: `args.sh`, `arch.sh`, `sudo.sh`, `github.sh`, `npm.sh`, `profile.sh` |
+| `meta/scripts/lib/` | Shared utilities: `args.sh`, `arch.sh`, `sudo.sh`, `github.sh`, `homebrew.sh`, `installers.sh`, `npm.sh`, `profile.sh` |
 | `meta/packages/linux.packages` | apt package list |
-| `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
-| `meta/homebrew/Brewfile.work` | macOS work Homebrew bundle |
+| `meta/homebrew/Brewfile.core` | macOS shared core Homebrew bundle |
+| `meta/homebrew/Brewfile.personal` | macOS personal Homebrew formulae/casks |
+| `meta/homebrew/Brewfile.work` | macOS work Homebrew formulae/casks |
+| `meta/homebrew/vscode.<profile>` | macOS profile-specific VS Code extensions |
 
 ## Cross-Platform Install Architecture
 
@@ -46,19 +49,19 @@ Both platform scripts follow the same structure:
 
 ```
 DOTFILES_DIR → LIB → INSTALL_D → source args/profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh → source npm.sh
-→ platform packages (brew bundle / apt-get unless skipped)
+→ source sudo.sh → source arch.sh → source github.sh → source homebrew/npm helpers
+→ platform packages (best-effort brew bundle / apt-get unless skipped)
 → install.d loop → setup-common.sh
 ```
 
-**`shared/` scripts must work on both macOS and Linux without platform guards.** No Darwin checks, no `apt-get` checks, no platform-specific conditionals in guards. If a script would fail on macOS, it belongs in `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's selecting the right binary, not guarding execution.
+**`shared/` scripts must work on both macOS and Linux without platform guards.** No Darwin checks, no `apt-get` checks, no platform-specific conditionals in guards. If a script would fail on one platform, it belongs in `macos/` or `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's selecting the right binary, not guarding execution.
 
-**macOS**: `brew bundle` runs first, so most shared scripts hit their guards and skip. With `--skip-brew`, the Homebrew step is bypassed and setup relies on already-installed prerequisites plus shared installers.
+**macOS**: Homebrew runs best-effort and no-upgrade by default: `Brewfile.core` first, then `Brewfile.<profile>`. Failures are logged under `backup/logs/` and summarized after setup. VS Code extensions live in `vscode.<profile>` and are installed one-by-one from `install.d/macos/`.
 **Linux**: `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ### Script numbering
 
-Scripts across both directories share a single number line:
+Scripts across `shared/`, `macos/`, and `linux/` share a single number line:
 
 | Range | Purpose | Examples |
 |-------|---------|----------|
@@ -75,13 +78,13 @@ Every script must be safe to re-run. Use the appropriate guard:
 
 | Pattern | When to use | Where |
 |---------|-------------|-------|
-| `command -v tool && return 0` | Standard — tool has a binary on PATH | `shared/` and `linux/` |
+| `command -v tool && return 0` | Standard — tool has a binary on PATH | `shared/`, `macos/`, and `linux/` |
 | `[ -f "$HOME/.local/bin/tool" ] && return 0` | Fallback — tool installs to `~/.local/bin` which isn't on PATH in non-interactive bash | `shared/` (after `command -v`) |
 | `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` | Shell function, not a binary | `linux/` (nvm) |
 | Marker files (`.installed-Name-vX.Y.Z`) | No binary to check, versioned assets | `linux/` (nerd-fonts) |
 | `npm_install_global_if_needed PACKAGE BINARY LABEL` | Shared npm guard/update/install policy | `shared/` (npm tools) |
 
-**`shared/` scripts use only `command -v` guards (+ fallback path checks + prerequisite guards).** No Darwin checks, no `apt-get` checks. If a script needs those, it belongs in `linux/`.
+**`shared/` scripts use only `command -v` guards (+ fallback path checks + prerequisite guards).** No Darwin checks, no `apt-get` checks. If a script needs those, it belongs in `macos/` or `linux/`.
 
 ### npm-installed tools pattern
 
@@ -93,7 +96,7 @@ For tools installed via `npm install -g`, use this template (number ≥74):
 npm_install_global_if_needed toolname toolname toolname
 ```
 
-npm tools must be numbered ≥74 so they run after `linux/70-node` installs Node.js on Linux. On macOS, brew provides node before the shared loop runs.
+npm tools must be numbered ≥74 so they run after `linux/70-node` installs Node.js on Linux. On macOS, brew provides node before the install.d loop runs.
 
 ### Cross-platform binary downloads
 
@@ -159,7 +162,7 @@ Add to the appropriate `50-utils-*.zsh` file, or create `stow/zsh/.zshrc.d/50-ut
 
 ## Adding a New CLI Tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform), `meta/scripts/install.d/macos/<NN>-toolname.sh` (macOS only), or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
@@ -176,11 +179,12 @@ Rules:
 - Add fallback path check for tools that install to `~/.local/bin` (not on PATH in non-interactive bash)
 - Use `$SUDO`, `$ARCH`, `$ARCH_GO`, `$ARCH_MUSL` from `lib/` — never hardcode
 - Use `gh_latest_version OWNER REPO` from `lib/github.sh` — never hardcode versions
-- **`shared/` scripts must not contain Darwin guards, `apt-get` guards, or any platform-specific conditionals in their guards** — if a script needs those, put it in `linux/`
+- **`shared/` scripts must not contain Darwin guards, `apt-get` guards, or any platform-specific conditionals in their guards** — if a script needs those, put it in `macos/` or `linux/`
 - npm-dependent tools go in `shared/` (npm works cross-platform) but must be numbered ≥74
+- macOS-specific post-brew install methods go in `macos/`
 - Linux-specific install methods (apt, Linux font paths, shell functions without a binary) go in `linux/`
 
-For macOS-only tools, add to **both** `Brewfile.personal` and `Brewfile.work` unless genuinely profile-specific.
+For macOS-only core tools, add to `Brewfile.core`. Profile-specific formulae/casks go in `Brewfile.personal` or `Brewfile.work`. VS Code extensions go in `vscode.<profile>`.
 
 ## Adding a New Stow Package
 
@@ -219,11 +223,11 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 - [ ] `install.d/` scripts guard with `command -v tool &>/dev/null && return 0`
 - [ ] `~/.local/bin` installers add fallback: `[ -f "$HOME/.local/bin/tool" ] && return 0`
 - [ ] `shared/` scripts contain no Darwin guards, apt-get guards, or platform conditionals in guards
-- [ ] Scripts needing platform-specific guards (Darwin checks, apt-get checks, marker files) are in `linux/`
+- [ ] Scripts needing platform-specific guards (Darwin checks, apt-get checks, marker files) are in `macos/` or `linux/`
 - [ ] npm-dependent scripts in `shared/` include prerequisite guard and are numbered ≥74
 - [ ] Cross-platform binary scripts detect OS inline (`uname`) and use `$ARCH_GO`/`$ARCH_MUSL` — never hardcode
 - [ ] Versions are fetched dynamically via `gh_latest_version` — never hardcoded
-- [ ] Core CLI tools are in both Brewfile.personal and Brewfile.work (not profile-specific unless genuinely different)
+- [ ] Core CLI tools are in Brewfile.core; profile-specific formulae/casks are in the profile Brewfile; VS Code extensions are in `vscode.<profile>`
 - [ ] New zsh config goes in its own `.zshrc.d/` file, not appended to `.zshrc`
 - [ ] Path entries go in `00-path.zsh` only
 - [ ] Numbered prefixes control load order: `00-` first, `50-` default, `99-` last — new files default to `50-`

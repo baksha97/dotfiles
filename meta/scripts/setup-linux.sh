@@ -25,6 +25,7 @@ echo "Using profile: $profile"
 source "$LIB/sudo.sh"
 source "$LIB/arch.sh"
 source "$LIB/github.sh"
+source "$LIB/installers.sh"
 source "$LIB/npm.sh"
 
 # Show hidden files in GNOME Files if available
@@ -59,24 +60,13 @@ if [ "$SETUP_SKIP_INSTALLERS" = true ]; then
 else
   # Merge shared/ and linux/ scripts, sorted by filename so numbering controls
   # global install order (e.g. linux/70-node runs before shared/80-vercel).
-  shopt -s nullglob
-  readarray -t install_scripts < <(
-    for f in "$INSTALL_D/shared/"*.sh "$INSTALL_D/linux/"*.sh; do
-      echo "$(basename "$f") $f"
-    done | sort | cut -d' ' -f2-
-  )
-  for f in "${install_scripts[@]}"; do
-    source "$f"
-  done
+  setup_source_installers "$INSTALL_D/shared" "$INSTALL_D/linux"
 
   # ── GUI apps (headful environments only) ───────────────────────────────────
   if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" || -n "${XDG_CURRENT_DESKTOP:-}" ]]; then
     echo "Headful environment detected — installing GUI apps..."
-    for f in "$INSTALL_D/linux-gui/"*.sh; do
-      source "$f"
-    done
+    setup_source_installers "$INSTALL_D/linux-gui"
   fi
-  shopt -u nullglob
 fi
 
 # ── Dotfiles stow, git, and agent skills ─────────────────────────────────────

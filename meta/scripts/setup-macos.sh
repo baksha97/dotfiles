@@ -22,25 +22,12 @@ echo "Using profile: $profile"
 source "$LIB/sudo.sh"
 source "$LIB/arch.sh"
 source "$LIB/github.sh"
+source "$LIB/homebrew.sh"
+source "$LIB/installers.sh"
 source "$LIB/npm.sh"
 
-load_homebrew_shellenv() {
-  local brew_bin=""
-  local shellenv_output=""
-
-  if [[ -x "/opt/homebrew/bin/brew" ]]; then
-    brew_bin="/opt/homebrew/bin/brew"
-  elif [[ -x "/usr/local/bin/brew" ]]; then
-    brew_bin="/usr/local/bin/brew"
-  fi
-
-  if [ -n "$brew_bin" ] && shellenv_output="$("$brew_bin" shellenv 2>/dev/null)"; then
-    eval "$shellenv_output"
-  fi
-}
-
 # Make already-installed Homebrew tools available without installing anything.
-load_homebrew_shellenv
+homebrew_load_shellenv
 
 # Show hidden files in Finder
 if [ "$SETUP_DRY_RUN" = true ]; then
@@ -52,30 +39,26 @@ fi
 if [ "$SETUP_SKIP_PLATFORM_PACKAGES" = true ]; then
   echo "Skipping Homebrew install/update/bundle"
 else
-  # Install Homebrew if missing
-  if ! command -v brew &>/dev/null; then
-    echo "Homebrew not found, installing..."
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  homebrew_install_if_missing
+
+  if command -v brew &>/dev/null; then
+    # Eval shellenv for current session — required on Apple Silicon where Homebrew
+    # lands in /opt/homebrew (not on PATH by default until shell profile is sourced)
+    homebrew_load_shellenv
+    homebrew_run "Homebrew update" brew update
+    homebrew_bundle_install "$DOTFILES_DIR/meta/homebrew/Brewfile.core" "Homebrew core bundle"
+    homebrew_bundle_install "$DOTFILES_DIR/meta/homebrew/Brewfile.$profile" "Homebrew $profile bundle"
+  else
+    homebrew_record_failure "Homebrew unavailable"
+    echo "  Warning: Homebrew unavailable; continuing without brew bundle."
   fi
-
-  # Eval shellenv for current session — required on Apple Silicon where Homebrew
-  # lands in /opt/homebrew (not on PATH by default until shell profile is sourced)
-  load_homebrew_shellenv
-
-  brew update
-  brew bundle --verbose --file="$DOTFILES_DIR/meta/homebrew/Brewfile.$profile"
 fi
 
 if [ "$SETUP_SKIP_INSTALLERS" = true ]; then
-  echo "Skipping shared installers"
+  echo "Skipping install.d installers"
 else
-  # Install tools that use native installers.
-  # Each file in install.d/shared/ installs one tool (works on all platforms).
-  shopt -s nullglob
-  for f in "$INSTALL_D/shared/"*.sh; do
-    source "$f"
-  done
-  shopt -u nullglob
+  setup_source_installers "$INSTALL_D/shared" "$INSTALL_D/macos"
 fi
 
 source "$DOTFILES_DIR/meta/scripts/setup-common.sh"
+homebrew_print_summary

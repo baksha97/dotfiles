@@ -10,6 +10,7 @@ Flags:
   --dry-run, -n             Print setup actions without mutating files
   --skip-platform-packages  Skip Homebrew/apt package installation
   --skip-brew, --no-brew    macOS alias for --skip-platform-packages
+  --brew-upgrade            Allow brew bundle to upgrade outdated dependencies
   --skip-installers         Skip install.d tool installers
   --skip-sdkman             Skip SDKMAN! install and SDK package installs
   --skip-stow               Skip stow.d package linking
@@ -22,6 +23,7 @@ setup_parse_args() {
   SETUP_DRY_RUN=false
   SETUP_SKIP_PLATFORM_PACKAGES=false
   SETUP_SKIP_BREW=false
+  SETUP_BREW_UPGRADE=false
   SETUP_SKIP_INSTALLERS=false
   SETUP_SKIP_SDKMAN=false
   SETUP_SKIP_STOW=false
@@ -40,6 +42,9 @@ setup_parse_args() {
       --skip-brew|--no-brew)
         SETUP_SKIP_BREW=true
         SETUP_SKIP_PLATFORM_PACKAGES=true
+        ;;
+      --brew-upgrade)
+        SETUP_BREW_UPGRADE=true
         ;;
       --skip-installers)
         SETUP_SKIP_INSTALLERS=true
@@ -81,6 +86,7 @@ setup_parse_args() {
   export SETUP_DRY_RUN
   export SETUP_SKIP_PLATFORM_PACKAGES
   export SETUP_SKIP_BREW
+  export SETUP_BREW_UPGRADE
   export SETUP_SKIP_INSTALLERS
   export SETUP_SKIP_SDKMAN
   export SETUP_SKIP_STOW

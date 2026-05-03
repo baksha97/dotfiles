@@ -6,7 +6,7 @@ Project instructions for AI coding agents. `CLAUDE.md` is a symlink to this file
 
 ```bash
 ./main.sh setup [profile] [flags]  # Bootstrap the system — auto-detects OS, auto-detects profile on re-run
-./main.sh brew backup [profile]    # Dump Homebrew state to meta/homebrew/Brewfile.<profile>
+./main.sh brew backup [profile]    # Dump Homebrew state to meta/homebrew/Brewfile/vscode profile files
 ./main.sh test                     # Run setup smoke checks
 ./main.sh alacritty-icon           # Replace Alacritty app icon
 ```
@@ -18,6 +18,7 @@ Setup flags:
 - `--dry-run` / `-n`: show setup and stow actions without mutating files
 - `--skip-platform-packages`: skip Homebrew/apt package installation
 - `--skip-brew` / `--no-brew`: macOS alias for `--skip-platform-packages`
+- `--brew-upgrade`: allow `brew bundle` to upgrade outdated dependencies; normal setup uses `--no-upgrade`
 - `--skip-installers`, `--skip-sdkman`, `--skip-stow`: skip individual phases
 
 ## Architecture
@@ -28,7 +29,7 @@ Setup flags:
 
 **Profiles** (`personal` / `work`) control:
 1. Git identity — `stow/git/profiles/<name>` is copied to `stow/git/.gitconfig-profile` (gitignored), which `.gitconfig` includes via `[include]`
-2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.<profile>` is the source of truth
+2. **macOS only**: Homebrew packages — `meta/homebrew/Brewfile.core`, `Brewfile.<profile>`, and `vscode.<profile>` are the source of truth
 
 Pass `--skip-brew` or `--skip-platform-packages` on macOS to skip Homebrew install/update/bundle while still running shared installers and `setup-common.sh`.
 
@@ -46,24 +47,24 @@ Both platform scripts follow the same structure:
 
 ```
 DOTFILES_DIR → LIB → INSTALL_D → source args/profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh → source npm.sh
-→ platform packages (brew bundle / apt-get unless skipped)
-→ install.d/shared/ loop (+ linux/ merged on Linux)
+→ source sudo.sh → source arch.sh → source github.sh → source homebrew/npm helpers
+→ platform packages (best-effort brew bundle / apt-get unless skipped)
+→ install.d/shared/ loop (+ macos/ on macOS, + linux/ merged on Linux)
 → setup-common.sh (SDKMAN!, stow.d loop, git profile, agent skills)
 ```
 
-**macOS**: `brew bundle` installs most tools first, so shared scripts hit guards and skip. With `--skip-brew`, the Homebrew step is bypassed and setup relies on already-installed prerequisites plus shared installers.
+**macOS**: Homebrew runs best-effort and no-upgrade by default: `Brewfile.core` first, then `Brewfile.<profile>`. Failures are logged under `backup/logs/` and summarized after setup. VS Code extensions are installed from `meta/homebrew/vscode.<profile>` by `install.d/macos/70-vscode-extensions.sh`.
 **Linux**: `shared/` and `linux/` scripts are merged and sorted by filename — numbering controls global install order (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
 ## Setup Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `setup-macos.sh` | macOS bootstrap (optional Homebrew install + bundle, loops install.d/shared/) |
+| `setup-macos.sh` | macOS bootstrap (optional Homebrew install + bundle, loops install.d/shared/ + macos/) |
 | `setup-linux.sh` | Linux bootstrap (apt install, merges install.d/shared/ + linux/ sorted by filename) |
 | `setup-common.sh` | Shared bootstrap: SDKMAN!, loops stow.d/, git profile, agent skills |
 | `test-setup.sh` | Local smoke checks: shell syntax, optional shellcheck, fake-HOME stow dry-run |
-| `backup.sh` | `brew bundle dump` into the active profile's Brewfile |
+| `backup.sh` | `brew bundle dump --no-vscode` into the active profile's Brewfile plus VS Code extension list |
 | `alacritty-icon.sh` | Replace Alacritty app icon |
 
 ## Composition Architecture
@@ -79,6 +80,7 @@ meta/scripts/
     profile.sh             # resolve_profile() — auto-detect or accept explicit profile
   install.d/               # Per-tool installers (sourced in numbered order)
     shared/                # Cross-platform (must work on macOS + Linux without platform guards)
+    macos/                 # macOS-only post-brew installers
     linux/                 # Linux-only (apt-specific, Linux paths, etc.)
     linux-gui/             # GUI apps (sourced only when DISPLAY/WAYLAND is set)
   stow.d/                  # One file per stow package (sourced by setup-common.sh)
@@ -86,7 +88,7 @@ meta/scripts/
 
 ### Script numbering
 
-Scripts across `shared/` and `linux/` share a single number line. On Linux, both directories are merged and sorted by filename:
+Scripts across `shared/`, `macos/`, and `linux/` share a single number line. On macOS, `shared/` and `macos/` are merged and sorted by filename; on Linux, `shared/` and `linux/` are merged and sorted by filename:
 
 | Range | Purpose | Examples |
 |-------|---------|----------|
@@ -99,7 +101,7 @@ Scripts across `shared/` and `linux/` share a single number line. On Linux, both
 
 ### Adding a new CLI tool
 
-Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform) or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
+Create `meta/scripts/install.d/shared/<NN>-toolname.sh` (cross-platform), `meta/scripts/install.d/macos/<NN>-toolname.sh` (macOS only), or `meta/scripts/install.d/linux/<NN>-toolname.sh` (Linux only):
 
 ```bash
 #!/bin/bash
@@ -109,7 +111,7 @@ echo "Installing toolname..."
 curl -fsSL https://toolname.dev/install.sh | bash
 ```
 
-**`shared/` rules**: no Darwin guards, no `apt-get` guards, no platform-specific conditionals in guards. If a script needs those, it belongs in `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's not a guard.
+**`shared/` rules**: no Darwin guards, no `apt-get` guards, no platform-specific conditionals in guards. If a script needs those, it belongs in `macos/` or `linux/`. Inline OS detection for binary download URLs (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) is fine — that's not a guard.
 
 ### Adding a new stow package
 
@@ -162,19 +164,25 @@ Verify idempotency by running setup again — all tools should skip. Clean up wi
 
 | File | Purpose |
 |------|---------|
-| `meta/scripts/setup-macos.sh` | macOS bootstrap (Homebrew install + bundle + shared loop) |
+| `meta/scripts/setup-macos.sh` | macOS bootstrap (best-effort Homebrew + merged install loop) |
 | `meta/scripts/setup-linux.sh` | Linux bootstrap orchestrator (apt + merged install loop) |
 | `meta/scripts/setup-common.sh` | Shared bootstrap (SDKMAN!, stow.d loop, git profile, agent skills) |
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
 | `meta/scripts/lib/args.sh` | Shared setup flag parsing |
+| `meta/scripts/lib/homebrew.sh` | Best-effort Homebrew helpers and warning summary |
+| `meta/scripts/lib/installers.sh` | Deterministic install.d sourcing helper |
 | `meta/scripts/lib/npm.sh` | Idempotent global npm installer helper |
 | `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux) |
+| `meta/scripts/install.d/macos/` | macOS-only post-brew installers |
 | `meta/scripts/install.d/linux/` | Linux-only tool installers |
 | `meta/scripts/install.d/linux-gui/` | GUI app installers (headful only) |
 | `meta/scripts/stow.d/` | Per-package stow manifests |
+| `meta/homebrew/Brewfile.core` | macOS core Homebrew bundle |
+| `meta/homebrew/Brewfile.<profile>` | macOS profile-specific Homebrew formulae/casks |
+| `meta/homebrew/vscode.<profile>` | macOS profile-specific VS Code extension list |
 | `meta/packages/linux.packages` | apt package list |
 | `stow/zsh/.zshrc` | Zsh config — sources all `~/.zshrc.d/*.zsh` (just the loop, nothing else) |
 | `stow/zsh/.zshrc.d/` | Modular zsh configs, numbered-prefix ordering: `00-` first, `50-` default, `99-` last |
@@ -203,5 +211,5 @@ Verify idempotency by running setup again — all tools should skip. Clean up wi
 - All `install.d/` and `stow.d/` scripts use `return` (not `exit`) since they are sourced, not executed
 - `install.d/` scripts are idempotent: guard with `command -v` + fallback path check for `~/.local/bin` installers
 - `shared/` scripts must not contain platform guards — only `command -v` and prerequisite guards
-- Core CLI tools belong in both Brewfile.personal and Brewfile.work unless genuinely profile-specific
+- Core CLI tools belong in `Brewfile.core`; profile-specific formulae/casks belong in `Brewfile.personal` or `Brewfile.work`; VS Code extensions belong in `vscode.<profile>`
 - Never hardcode tool versions — use `gh_latest_version` for GitHub releases

@@ -1,5 +1,5 @@
 #!/bin/bash
 # VLC — media player
-command -v vlc &>/dev/null && return 0
-echo "  Installing VLC..."
+apt_package_current vlc && return 0
+echo "  Installing/updating VLC..."
 $SUDO apt-get install -y vlc

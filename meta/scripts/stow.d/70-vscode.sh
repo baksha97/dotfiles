@@ -7,7 +7,7 @@ else
   STOW_TARGET="$HOME/.config/Code/User"
 fi
 
-mkdir -p "$STOW_TARGET"
+setup_mkdir_p "$STOW_TARGET"
 for f in .vscode keybindings.json settings.json; do
   stow_backup "$STOW_TARGET/$f"
 done

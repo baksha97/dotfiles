@@ -11,22 +11,36 @@ usage() {
 Usage: ./main.sh <command> [options]
 
 Commands:
-  setup [profile]          Bootstrap the system (auto-detects OS and profile on re-run)
-  brew backup [profile]    Dump current Homebrew state to meta/homebrew/Brewfile.<profile>
+  setup [profile] [flags]  Bootstrap the system (auto-detects OS and profile on re-run)
+  brew backup [profile]    Dump Homebrew state to meta/homebrew/Brewfile/vscode files
+  test                     Run local setup smoke checks
   alacritty-icon           Replace the Alacritty app icon
 
 Profiles:
   Profiles control git identity (and Homebrew packages on macOS).
   Available profiles are defined in stow/git/profiles/.
-  On macOS each profile has a matching meta/homebrew/Brewfile.<profile>.
+  On macOS each profile has a matching Brewfile.<profile> and vscode.<profile>.
   On re-runs the active profile is auto-detected; pass a name to switch.
 
+Setup flags:
+  --adopt                   Let Stow adopt remaining unhandled conflicts
+  --dry-run, -n             Print setup actions without mutating files
+  --skip-platform-packages  Skip Homebrew/apt package installation
+  --skip-brew, --no-brew    macOS alias for --skip-platform-packages
+  --brew-upgrade            Allow brew bundle to upgrade outdated dependencies
+  --skip-installers         Skip install.d tool installers
+  --skip-sdkman             Skip SDKMAN! install and SDK package installs
+  --skip-stow               Skip stow.d package linking
+
 Examples:
-  ./main.sh setup              # full setup (auto-detects profile, defaults to "personal")
-  ./main.sh setup work         # full setup with "work" profile (switches if different)
-  ./main.sh brew backup        # dump Homebrew state to meta/homebrew/Brewfile.personal
-  ./main.sh brew backup work   # dump Homebrew state to meta/homebrew/Brewfile.work
-  ./main.sh alacritty-icon     # replace Alacritty icon
+  ./main.sh setup                    # normal rerun using existing stow links
+  ./main.sh setup --adopt            # first setup or explicit conflict adoption
+  ./main.sh setup work --skip-brew   # work profile without Homebrew install/update/bundle
+  ./main.sh setup --dry-run          # dry-run stow/setup planning
+  ./main.sh test                     # run setup smoke checks
+  ./main.sh brew backup              # dump Homebrew state to personal Brewfile/vscode files
+  ./main.sh brew backup work         # dump Homebrew state to work Brewfile/vscode files
+  ./main.sh alacritty-icon           # replace Alacritty icon
 EOF
 }
 
@@ -51,6 +65,7 @@ case "$command" in
       *)      echo "Unknown brew subcommand: $subcommand"; usage; exit 1 ;;
     esac
     ;;
+  test)           source "$DOTFILES_DIR/meta/scripts/test-setup.sh" "$@" ;;
   alacritty-icon) source "$DOTFILES_DIR/meta/scripts/alacritty-icon.sh" "$@" ;;
   *)              usage; exit 1 ;;
 esac

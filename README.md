@@ -25,23 +25,33 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 ```bash
 git clone git@github.com:baksha97/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./main.sh setup          # full setup (auto-detects profile, defaults to "personal")
-./main.sh setup work     # full setup with "work" profile
+./main.sh setup --adopt  # first setup: backs up known conflicts and adopts remaining conflicts
+./main.sh setup          # normal rerun: restows existing links
+./main.sh setup work     # setup with the "work" profile
 ```
 
 ### All Commands
 
 ```bash
-./main.sh setup [profile]        # bootstrap the system (auto-detects OS and profile on re-run)
-./main.sh brew backup [profile]  # dump current Homebrew state to Brewfile.<profile>
-./main.sh alacritty-icon         # replace the Alacritty app icon
+./main.sh setup [profile] [flags]  # bootstrap the system (auto-detects OS and profile on re-run)
+./main.sh brew backup [profile]    # dump Homebrew state to Brewfile/vscode files
+./main.sh test                     # run setup smoke checks
+./main.sh alacritty-icon           # replace the Alacritty app icon
 ```
+
+Useful setup flags:
+- `--adopt` — let Stow adopt remaining unhandled conflicts; use for first setup or explicit repair
+- `--dry-run` / `-n` — show setup and stow actions without mutating files
+- `--skip-platform-packages` — skip Homebrew/apt package installation
+- `--skip-brew` / `--no-brew` — macOS alias for `--skip-platform-packages`
+- `--brew-upgrade` — allow `brew bundle` to upgrade outdated dependencies; normal setup uses `--no-upgrade`
+- `--skip-installers`, `--skip-sdkman`, `--skip-stow` — skip individual phases
 
 ## How It Works
 
 This repository uses **GNU Stow** to manage dotfiles. Each directory inside `stow/` is a "stow package" whose internal structure mirrors where the files should live relative to `$HOME`. Stow creates symlinks from your home directory into this repo, so every config file is version-controlled in one place.
 
-The `--adopt` flag is used during setup, which means if you already have a config file at the target location, Stow moves it into the repo (adopting it) and creates the symlink. After running setup, a `git diff` will show any differences between your existing configs and the repo versions.
+Normal setup uses `stow --restow`, which refreshes existing links without pulling app-generated local changes into the repo. Pass `--adopt` for first setup or explicit repair; known conflicting files are path-backed up and removed first, and Stow can then move remaining conflicts into the matching package. After an adopt run, review `git diff` before committing.
 
 ```
 stow/
@@ -63,6 +73,7 @@ stow/
 The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow package requires only dropping one file** — no edits to existing scripts.
 
 - `meta/scripts/install.d/shared/` — cross-platform tool installers (must work on macOS + Linux)
+- `meta/scripts/install.d/macos/` — macOS-only post-brew installers
 - `meta/scripts/install.d/linux/` — Linux-only tools (apt-specific, Linux paths)
 - `meta/scripts/install.d/linux-gui/` — GUI apps (headful only)
 - `meta/scripts/stow.d/` — one stow manifest per package
@@ -72,23 +83,24 @@ The setup scripts mirror the `.zshrc.d/` pattern: **adding a new tool or stow pa
 Both macOS and Linux follow the same setup structure:
 
 ```
-source libs → resolve profile → platform packages → install.d loop → setup-common.sh
+parse args → resolve profile → platform packages → install.d loop → setup-common.sh
 ```
 
-**macOS** (`setup-macos.sh`): Homebrew installs most tools via `brew bundle`, then `shared/` scripts run — most hit their `command -v` guard and skip since brew already installed the tool.
+**macOS** (`setup-macos.sh`): Homebrew runs as a best-effort package phase: it installs/updates `Brewfile.core`, then the active profile Brewfile, and setup continues even if a brew command fails. Normal setup uses `brew bundle --no-upgrade`; pass `--brew-upgrade` to allow upgrades. VS Code extensions live in `meta/homebrew/vscode.<profile>` and are installed one-by-one from `install.d/macos/`. Pass `--skip-brew` or `--skip-platform-packages` to bypass Homebrew install/update/bundle and rely on already-installed tools plus the non-brew installers.
 
 **Linux** (`setup-linux.sh`): apt installs base packages, then `shared/` and `linux/` scripts are **merged and sorted by filename** so numbering controls global install order. This ensures dependencies are respected (e.g. `linux/70-node` runs before `shared/80-vercel`).
 
-### Strict `shared/` vs `linux/` separation
+### Strict `shared/` vs platform-specific separation
 
-- **`shared/`**: Scripts must work on both macOS and Linux **without platform guards**. No `[[ "$(uname)" == "Darwin" ]] && return 0`, no `command -v apt-get || return 0`. If a script would fail on macOS, it belongs in `linux/`.
+- **`shared/`**: Scripts must work on both macOS and Linux **without platform guards**. No `[[ "$(uname)" == "Darwin" ]] && return 0`, no `command -v apt-get || return 0`. If a script would fail on one platform, it belongs in `macos/` or `linux/`.
+- **`macos/`**: macOS-only post-brew installers, such as tools that should run after Homebrew but are better handled one-by-one.
 - **`linux/`**: Linux-only install methods — apt repos, Linux font paths, shell functions without a binary to check.
 
 Inline OS detection for binary download URLs is fine in `shared/` (e.g. `[[ "$(uname)" == "Darwin" ]] && OS="darwin"`) — that's selecting the right binary, not guarding execution.
 
 ### Script numbering
 
-Scripts across both directories share a single number line:
+Scripts across `shared/`, `macos/`, and `linux/` share a single number line:
 
 | Range | Purpose | Examples |
 |-------|---------|----------|
@@ -106,13 +118,14 @@ Every setup component is designed for safe re-runs:
 | Component | Guard mechanism |
 |-----------|----------------|
 | `install.d/` scripts | `command -v tool && return 0` + fallback path check for `~/.local/bin` installers |
-| npm-installed tools | `command -v npm \|\| { echo "Skipped..."; return 0; }` prerequisite guard |
+| npm-installed tools | `npm_install_global_if_needed package binary label` from `lib/npm.sh` |
 | Nerd fonts (linux) | Per-font marker files (`.installed-FontName-vX.Y.Z`) |
 | nvm (linux) | `[ -s "$HOME/.nvm/nvm.sh" ] && return 0` (shell function, not binary) |
-| `stow --adopt` | Idempotent — re-stowing adopted files is a no-op |
+| Stow packages | Default `stow --restow`; explicit `--adopt` for first setup/repair |
 | Git profile | `cmp -s` guard — skips copy if unchanged |
 | Skills symlinks | Recreated each run (rm + ln -s) |
 | Version detection | `gh_latest_version` — always latest, never hardcoded |
+| Homebrew | Best-effort; failures are logged under `backup/logs/` and summarized after setup |
 
 ## Repository Structure
 
@@ -147,25 +160,33 @@ dotfiles/
 └── meta/                          # Support files (not stowed)
     ├── skills/                    # AI coding agent skills (symlinked to tool paths)
     ├── homebrew/                   # Homebrew package management (macOS only)
+    │   ├── Brewfile.core
     │   ├── Brewfile.personal
-    │   └── Brewfile.work
+    │   ├── Brewfile.work
+    │   ├── vscode.personal
+    │   └── vscode.work
     ├── packages/                   # Linux package lists
     │   └── linux.packages          # apt packages for Debian/Ubuntu setup
     └── scripts/                    # Implementation scripts
         ├── lib/                    # Shared utilities (sourced first by platform scripts)
+        │   ├── args.sh             # Shared setup flag parsing
         │   ├── arch.sh             # ARCH_GO / ARCH_MUSL detection
         │   ├── sudo.sh             # SUDO prefix detection
         │   ├── github.sh           # gh_latest_version() helper
+        │   ├── homebrew.sh         # Best-effort Homebrew helpers
+        │   ├── installers.sh       # Deterministic install.d sourcing helper
+        │   ├── npm.sh              # Global npm installer helper
         │   └── profile.sh          # resolve_profile() — auto-detect or accept explicit
         ├── install.d/              # Per-tool installers (one file = one tool)
         │   ├── shared/             # Cross-platform (must work on macOS + Linux)
+        │   ├── macos/              # macOS-only post-brew installers
         │   ├── linux/              # Linux-only tools
         │   └── linux-gui/          # GUI apps (headful environments only)
         ├── stow.d/                 # Per-package stow manifests (one file = one package)
-        ├── setup-macos.sh          # macOS bootstrap (Homebrew + shared loop)
+        ├── setup-macos.sh          # macOS bootstrap (best-effort Homebrew + merged install loop)
         ├── setup-linux.sh          # Linux bootstrap (apt + merged install loop)
         ├── setup-common.sh         # Shared stow/git/skills setup
-        ├── backup.sh               # Brewfile dump
+        ├── backup.sh               # Brewfile/vscode dump
         └── alacritty-icon.sh       # Icon replacement
 ```
 
@@ -193,19 +214,21 @@ VS Code target paths:
 The `setup` command performs these steps in order:
 
 1. **Resolve profile** — auto-detects from previous setup or uses explicit argument (defaults to `personal`)
-2. **Source lib utilities** — profile, sudo, arch, github helpers
+2. **Source lib utilities** — args, profile, sudo, arch, github, homebrew, installers, npm helpers
 3. **Show hidden files** in Finder (macOS) or Nautilus (Linux)
 4. **Platform-specific package installation:**
-   - **macOS**: Install Homebrew (if missing), then `brew bundle` from `meta/homebrew/Brewfile.<profile>`
-   - **Linux**: Install apt packages from `meta/packages/linux.packages`, change shell to zsh
+   - **macOS**: Install Homebrew (if missing), then best-effort `brew bundle` from `Brewfile.core` and `Brewfile.<profile>` unless skipped
+   - **Linux**: Install apt packages from `meta/packages/linux.packages`, change shell to zsh unless skipped
 5. **Install.d loop** — each script installs one tool with idempotency guards
-   - **macOS**: loops `shared/` only (brew already installed most tools)
+   - **macOS**: merges `shared/` + `macos/` sorted by filename
    - **Linux**: merges `shared/` + `linux/` sorted by filename for dependency ordering
 6. **Install SDKMAN!** for JVM SDK management
-7. **Stow all packages** — each `stow.d/` script backs up and links one package
+7. **Stow all packages** — each `stow.d/` script backs up conflicts and restows one package; `--adopt` enables adoption
 8. **Set git profile** — copies the chosen identity into `~/.gitconfig-profile`
 9. **Symlink Agent Skills** — makes skills discoverable by Copilot, Cursor, and other agents
 10. **Linux SDKMAN packages** — installs Gradle and Kotlin (Linux only)
+
+`--dry-run` skips package installers and SDKMAN, then runs stow planning with `--simulate`.
 
 ### Tool Installation Matrix
 
@@ -242,7 +265,8 @@ The `setup` command performs these steps in order:
 
 | Category | Packages |
 |----------|----------|
-| **CLI tools** | `fzf`, `zoxide`, `tmux`, `stow`, `curl`, `ffmpeg`, `jq`, `yq`, `typos-cli` |
+| **Core CLI tools** | `fzf`, `zoxide`, `tmux`, `stow`, `curl`, `jq`, `yq` |
+| **Profile CLI tools** | `ffmpeg`, `typos-cli`, `lazygit`, profile-specific CLIs |
 | **Dev runtimes** | `node`, `nvm`, `pnpm`, `uv` |
 | **Containers** | `docker`, `colima`, `act` (local GitHub Actions) |
 | **AI tools** | `agent-browser`, `vercel-cli` |
@@ -273,22 +297,23 @@ Available profiles:
 ```bash
 ./main.sh setup          # auto-detects profile (defaults to "personal" on fresh machines)
 ./main.sh setup work     # uses "work" profile (switches if different)
+./main.sh setup work --skip-brew  # macOS: use "work" profile without Homebrew install/update/bundle
 ```
 
 ### Homebrew Packages (macOS only)
 
-Each profile has its own complete Brewfile at `meta/homebrew/Brewfile.<profile>`. Core CLI tools are in both profiles; only genuinely profile-specific tools differ. During setup, only the matching profile's Brewfile is installed. The `backup` command dumps the current machine's Homebrew state into the active profile's Brewfile:
+Homebrew packages are split by criticality. `meta/homebrew/Brewfile.core` contains shared setup-critical CLI tools. Each profile has its own `meta/homebrew/Brewfile.<profile>` for profile-specific formulae and casks, and `meta/homebrew/vscode.<profile>` for VS Code extensions. During setup, the core Brewfile and matching profile Brewfile are installed unless `--skip-brew` or `--skip-platform-packages` is passed. The backup command dumps formulae/casks/taps into the active profile Brewfile and VS Code extensions into the matching extension list:
 
 ```bash
-./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal
-./main.sh brew backup work      # dumps to meta/homebrew/Brewfile.work
+./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal + vscode.personal
+./main.sh brew backup work      # dumps to meta/homebrew/Brewfile.work + vscode.work
 ```
 
 ### Adding a New Profile
 
 1. Create `stow/git/profiles/<name>` with `[user]` name and email fields
-2. **macOS only**: Create `meta/homebrew/Brewfile.<name>` with the desired packages
-3. Run `./main.sh setup <name>`
+2. **macOS only**: Create `meta/homebrew/Brewfile.<name>` and optionally `meta/homebrew/vscode.<name>`
+3. Run `./main.sh setup <name> --adopt` on first setup, or `./main.sh setup <name>` on normal reruns
 
 ## Agent Skills
 
@@ -416,11 +441,11 @@ The alacritty stow package also includes:
 
 ### `brew backup`
 
-Dumps the current Homebrew state (formulae, casks, taps, VS Code extensions) into the active profile's Brewfile:
+Dumps the current Homebrew state into split profile files. Formulae, casks, taps, and Go packages go to `meta/homebrew/Brewfile.<profile>` with core entries filtered out; VS Code extensions go to `meta/homebrew/vscode.<profile>`:
 
 ```bash
-./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal
-./main.sh brew backup work      # dumps to meta/homebrew/Brewfile.work
+./main.sh brew backup           # dumps to meta/homebrew/Brewfile.personal + vscode.personal
+./main.sh brew backup work      # dumps to meta/homebrew/Brewfile.work + vscode.work
 ```
 
 ### `alacritty-icon`
@@ -486,6 +511,9 @@ Create a single file — no existing scripts need editing:
 # Cross-platform (must work on macOS + Linux without platform guards):
 meta/scripts/install.d/shared/<NN>-toolname.sh
 
+# macOS-only post-brew:
+meta/scripts/install.d/macos/<NN>-toolname.sh
+
 # Linux-only (apt-specific, Linux paths, etc.):
 meta/scripts/install.d/linux/<NN>-toolname.sh
 ```
@@ -504,19 +532,10 @@ Template for npm tools in `shared/` (number ≥74):
 ```bash
 #!/bin/bash
 # toolname — short description
-command -v toolname &>/dev/null && return 0
-command -v npm &>/dev/null || { echo "  Skipped toolname (npm not found)"; return 0; }
-echo "Installing toolname..."
-# Avoid unnecessary sudo when npm global prefix is user-writable (e.g. Homebrew node)
-NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
-if [[ -w "$NPM_PREFIX" ]]; then
-  npm install -g toolname
-else
-  $SUDO npm install -g toolname
-fi
+npm_install_global_if_needed toolname toolname toolname
 ```
 
-Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`) and `gh_latest_version OWNER REPO` (from `lib/github.sh`) as needed. Never hardcode versions.
+Use `$SUDO`, `$ARCH_GO`, `$ARCH_MUSL` (set by `lib/`), `gh_latest_version OWNER REPO` (from `lib/github.sh`), and `npm_install_global_if_needed PACKAGE BINARY LABEL` (from `lib/npm.sh`) as needed. Never hardcode versions.
 
 ### New stow package
 
@@ -532,4 +551,4 @@ stow_package tool                  # stows against $HOME by default
 
 For non-`$HOME` targets (like claude or vscode), set `STOW_TARGET` before calling `stow_package`. For `--no-folding` packages, pass the flag directly: `stow_package tool --no-folding`.
 
-3. Run `./main.sh setup` or manually run the stow command.
+3. Run `./main.sh setup --adopt` for first setup/adoption, or `./main.sh setup` to restow existing links.

@@ -42,6 +42,7 @@
       "Bash(eval:*)"
     ]
   },
+  "model": "opus[1m]",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/status-line.sh"
@@ -64,6 +65,5 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "model": "opus[1m]"
+  "skipDangerousModePermissionPrompt": true
 }

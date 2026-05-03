@@ -12,3 +12,9 @@ enabled = true
 
 [mcp_servers.maestro]
 url = "https://maestro.tb-infra.com/mcp"
+
+[mcp_servers.maestro.tools.list_devices]
+approval_mode = "approve"
+
+[mcp_servers.maestro.tools.list_cloud_devices]
+approval_mode = "approve"

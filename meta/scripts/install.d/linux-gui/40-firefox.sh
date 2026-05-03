@@ -1,5 +1,5 @@
 #!/bin/bash
 # Firefox — web browser
-command -v firefox &>/dev/null && return 0
-echo "  Installing Firefox..."
+apt_package_current firefox && return 0
+echo "  Installing/updating Firefox..."
 $SUDO apt-get install -y firefox

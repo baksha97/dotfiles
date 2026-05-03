@@ -1,6 +1,9 @@
 [projects."/home/proxmox/homelab"]
 trust_level = "trusted"
 
+[projects."/home/proxmox/dotfiles"]
+trust_level = "trusted"
+
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 

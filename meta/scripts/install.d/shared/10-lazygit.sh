@@ -1,12 +1,15 @@
 #!/bin/bash
 # lazygit — terminal UI for git
-command -v lazygit &>/dev/null && return 0
-echo "Installing lazygit..."
 LG_VERSION="$(gh_latest_version jesseduffield lazygit)"
 if [[ -z "$LG_VERSION" ]]; then
   echo "  Warning: could not determine lazygit version, skipping." >&2
   return 0
 fi
+if command -v lazygit &>/dev/null; then
+  current_version="$(lazygit --version | grep -oE 'version=[^, ]+' | head -1 | cut -d= -f2)"
+  version_eq "$current_version" "$LG_VERSION" && return 0
+fi
+echo "Installing/updating lazygit..."
 # lazygit uses lowercase os and x86_64/arm64 naming
 LG_OS="linux"
 LG_ARCH="$ARCH_MUSL"

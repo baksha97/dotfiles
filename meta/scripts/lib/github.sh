@@ -13,3 +13,14 @@ gh_latest_version() {
     curl -s "$url" | grep -o '"tag_name": "v[^"]*"' | grep -o '[0-9][^"]*'
   fi
 }
+
+version_eq() {
+  [[ "${1#v}" == "${2#v}" ]]
+}
+
+apt_package_current() {
+  local package="$1" installed candidate
+  installed="$(dpkg-query -W -f='${Version}' "$package" 2>/dev/null || true)"
+  candidate="$(apt-cache policy "$package" 2>/dev/null | awk '/Candidate:/ {print $2}')"
+  [[ -n "$installed" && -n "$candidate" && "$installed" == "$candidate" ]]
+}

@@ -35,5 +35,7 @@
     }
   },
   "git.openRepositoryInParentFolders": "always",
-  "python.terminal.activateEnv": false
+  "python.terminal.activateEnv": false,
+  "claudeCode.selectedModel": "default",
+  "git.replaceTagsWhenPull": true
 }

@@ -45,10 +45,11 @@
   "model": "opus[1m]",
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/status-line.sh"
+    "command": "node $HOME/.claude/hud/omc-hud.mjs"
   },
   "enabledPlugins": {
-    "nelson@nelson-marketplace": true
+    "nelson@nelson-marketplace": true,
+    "swift-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "anthropic-agent-skills": {

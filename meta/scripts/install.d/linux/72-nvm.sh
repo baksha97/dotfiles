@@ -16,10 +16,10 @@ if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
   return 0
 fi
 
-latest_node_version="$(nvm version-remote node 2>/dev/null || true)"
+latest_node_version="$(nvm version-remote --lts 2>/dev/null || true)"
 if [[ -n "$latest_node_version" && "$(nvm version "$latest_node_version")" != "$latest_node_version" ]]; then
-  echo "Installing latest Node.js via nvm..."
-  nvm install node
+  echo "Installing latest Node.js LTS via nvm..."
+  nvm install --lts
 fi
-nvm alias default node
+nvm alias default 'lts/*'
 nvm use default

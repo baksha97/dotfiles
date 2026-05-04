@@ -21,15 +21,16 @@ echo "Using profile: $profile"
 
 source "$LIB/sudo.sh"
 source "$LIB/arch.sh"
+source "$LIB/apt.sh"
 source "$LIB/github.sh"
 
 # Show hidden files in GNOME Files if available
 command -v gsettings &>/dev/null && gsettings set org.gnome.nautilus.preferences show-hidden-files true || true
 
 # ── apt packages ─────────────────────────────────────────────────────────────
-$SUDO apt-get update -qq
+apt_update
 mapfile -t pkgs < <(grep -v '^\s*#' "$DOTFILES_DIR/meta/packages/linux.packages" | grep -v '^\s*$')
-$SUDO apt-get install -y "${pkgs[@]}"
+apt_install "${pkgs[@]}"
 
 # ── Change default shell to zsh ──────────────────────────────────────────────
 if [[ "$SHELL" != *"/zsh" ]]; then

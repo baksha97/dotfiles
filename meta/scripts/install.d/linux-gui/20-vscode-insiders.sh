@@ -7,8 +7,8 @@ if [[ ! -f /etc/apt/keyrings/microsoft.gpg ]] || [[ ! -f /etc/apt/sources.list.d
     | gpg --dearmor | $SUDO tee /etc/apt/keyrings/microsoft.gpg > /dev/null
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
     | $SUDO tee /etc/apt/sources.list.d/vscode.list > /dev/null
-  $SUDO apt-get update -qq
+  apt_update
 fi
 apt_package_current code-insiders && return 0
 echo "  Installing/updating VS Code Insiders..."
-$SUDO apt-get install -y code-insiders
+apt_install code-insiders

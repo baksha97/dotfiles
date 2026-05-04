@@ -36,7 +36,7 @@ Both platform scripts follow the same structure:
 
 ```
 DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh
+→ source sudo.sh → source arch.sh → source apt.sh → source github.sh
 → platform packages (brew bundle / apt-get)
 → install.d/shared/ loop (+ linux/ merged on Linux)
 → setup-common.sh (SDKMAN!, stow.d loop, git profile, agent skills)
@@ -64,6 +64,7 @@ meta/scripts/
   lib/                     # Shared utilities sourced at the start of each platform script
     arch.sh                # ARCH / ARCH_GO / ARCH_MUSL detection (exported)
     sudo.sh                # SUDO prefix detection (exported)
+    apt.sh                 # apt lock waiting, retry defaults, and package helpers
     github.sh              # gh_latest_version() helper function
     profile.sh             # resolve_profile() — auto-detect or accept explicit profile
   install.d/               # Per-tool installers (sourced in numbered order)
@@ -156,6 +157,7 @@ Verify idempotency by running setup again — all tools should skip. Clean up wi
 | `meta/scripts/setup-common.sh` | Shared bootstrap (SDKMAN!, stow.d loop, git profile, agent skills) |
 | `meta/scripts/lib/arch.sh` | Architecture detection: sets ARCH, ARCH_GO, ARCH_MUSL |
 | `meta/scripts/lib/sudo.sh` | Sudo prefix detection: sets SUDO |
+| `meta/scripts/lib/apt.sh` | Linux apt wrappers: lock waiting, retries, IPv4 fallback, package-current checks |
 | `meta/scripts/lib/github.sh` | `gh_latest_version OWNER REPO` helper |
 | `meta/scripts/lib/profile.sh` | `resolve_profile [name]` — auto-detect or accept explicit profile |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux) |

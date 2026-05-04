@@ -35,7 +35,7 @@ This skill encodes the conventions, architecture, and high-traction patterns for
 | `meta/scripts/stow.d/` | One `.sh` per stow package (git profile set in `50-git.sh`) |
 | `meta/scripts/install.d/shared/` | Cross-platform tool installers (must work on macOS + Linux without platform guards) |
 | `meta/scripts/install.d/linux/` | Linux-only installers (apt-specific, Linux paths, etc.) |
-| `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `github.sh`, `profile.sh` |
+| `meta/scripts/lib/` | Shared utilities: `arch.sh`, `sudo.sh`, `apt.sh`, `github.sh`, `profile.sh` |
 | `meta/packages/linux.packages` | apt package list |
 | `meta/homebrew/Brewfile.personal` | macOS personal Homebrew bundle |
 | `meta/homebrew/Brewfile.work` | macOS work Homebrew bundle |
@@ -46,7 +46,7 @@ Both platform scripts follow the same structure:
 
 ```
 DOTFILES_DIR → LIB → INSTALL_D → source profile.sh → resolve + validate profile
-→ source sudo.sh → source arch.sh → source github.sh
+→ source sudo.sh → source arch.sh → source apt.sh → source github.sh
 → platform packages (brew bundle / apt-get)
 → install.d loop → setup-common.sh
 ```
@@ -230,6 +230,7 @@ The symlink targets are defined in `meta/scripts/setup-common.sh` (the `for targ
 - [ ] `shared/` scripts contain no Darwin guards, apt-get guards, or platform conditionals in guards
 - [ ] Scripts needing platform-specific guards (Darwin checks, apt-get checks, marker files) are in `linux/`
 - [ ] npm-dependent scripts in `shared/` include prerequisite guard and are numbered ≥74
+- [ ] Linux apt operations use `apt_update` / `apt_install` from `meta/scripts/lib/apt.sh`
 - [ ] Cross-platform binary scripts detect OS inline (`uname`) and use `$ARCH_GO`/`$ARCH_MUSL` — never hardcode
 - [ ] Versions are fetched dynamically via `gh_latest_version` — never hardcoded
 - [ ] Core CLI tools are in both Brewfile.personal and Brewfile.work (not profile-specific unless genuinely different)
